@@ -1,6 +1,8 @@
 name: Create Release
 
 on:
+  schedule:
+  - cron: '*/30 * * * *'  # every 30 minutes
   push:
     branches:
     - main
@@ -20,44 +22,30 @@ on:
 
 concurrency: release
 jobs:
-  stack_files_changed:
-    name: Determine If Stack Files Changed
+  poll_ubi_images:
+    name: Poll UBI Images
     runs-on: ubuntu-22.04
     outputs:
-      stack_files_changed: ${{ steps.compare.outputs.stack_files_changed }}
-    steps:
-    - name: Checkout With History
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0  # gets full history
+      ubi_node_versions_need_update: ${{ steps.poll_ubi_images_step.outputs.ubi_node_versions_need_update }}
 
-    - name: Compare With Previous Release
-      id: compare
-      run: |
-        # shellcheck disable=SC2046
-        changed="$(git diff --name-only $(git describe --tags --abbrev=0) -- stack)"
-        if [ -z "${changed}" ]
-        then
-          echo "No relevant files changed since previous release."
-          echo "stack_files_changed=false" >> "$GITHUB_OUTPUT"
-        else
-          echo "Relevant files have changed since previous release."
-          echo "${changed}"
-          echo "stack_files_changed=true" >> "$GITHUB_OUTPUT"
-        fi
-
-  run_if_stack_files_changed:
-    name: Run If Stack Files Changed
-    runs-on: ubuntu-22.04
-    needs: [stack_files_changed]
-    if: ${{ needs.stack_files_changed.outputs.stack_files_changed == 'true' }}
     steps:
-    - name: Run if stack files changed
-      run: |
-        echo "stack files have changed"
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: validate sha256 hash codes
+        id: poll_ubi_images_step
+        run: |
+          node_versions_need_update=$(${GITHUB_WORKSPACE}/scripts/compare_sha.sh)
+          if [ -n "$node_versions_need_update" ]; then
+            echo "ubi_node_versions_need_update=$node_versions_need_update" >> $GITHUB_OUTPUT
+          fi
+
 
   create_stack:
     name: Create Stack
+    needs: poll_ubi_images
+    if: ${{ ! ( needs.poll_ubi_images.outputs.ubi_node_versions_need_update != '' && github.event_name == 'schedule' ) }}
+
     runs-on: ubuntu-22.04
     steps:
     - name: Checkout
@@ -132,8 +120,8 @@ jobs:
         name: current-nodejs-18-run-image
         path: build-nodejs-18
 
-    #- name: Run Acceptance Tests
-    #run: ./scripts/test.sh
+    # - name: Run Acceptance Tests
+    #   run: ./scripts/test.sh
 
   force_release_creation:
     name: Force Release Creation
@@ -147,14 +135,13 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-22.04
-    needs: [create_stack, run_if_stack_files_changed, test, force_release_creation ]
+    needs: [create_stack, test, force_release_creation ]
     if: ${{ always() && needs.diff.result == 'success' && needs.test.result == 'success' || ( needs.run_if_stack_files_changed.result == 'success' || needs.force_release_creation.result == 'success' ) }}
     steps:
     - name: Print Release Reasoning
       run: |
         printf "Diff Packages: %s\n" "${{ needs.diff.result }}"
         printf "Acceptance Tests: %s\n" "${{ needs.test.result }}"
-        printf "Run If Stack Files Changed: %s\n" "${{ needs.run_if_stack_files_changed.result }}"
         printf "Force Release: %s\n" "${{ github.event.inputs.force }}"
 
     - name: Checkout With History
