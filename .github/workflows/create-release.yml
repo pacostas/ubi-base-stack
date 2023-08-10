@@ -37,6 +37,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # gets full history
 
       # - name: Fetch current run Node.js 16 sha256 image hash code
       #   id: fetch_current_run_nodejs_16_sha256_image_hash_code
@@ -179,6 +181,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # gets full history
 
       - name: Download nodejs-16 Run Image
         uses: actions/download-artifact@v3
