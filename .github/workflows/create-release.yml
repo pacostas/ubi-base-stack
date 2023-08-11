@@ -1,6 +1,7 @@
 name: Create Release
 # Add a matrix for the node versions to check against
 on:
+  # TODO ask paketo about what kind of formatter they use for the document
   # TODO uncoment below code before merging
   # schedule:
   # - cron: '*/30 * * * *'  # every 30 minutes
@@ -33,14 +34,34 @@ jobs:
     name: Poll UBI Images
     runs-on: ubuntu-22.04
     outputs:
-      ubi_images_need_update: ${{ steps.compare_current_and_latest_sha256_hash_codes.outputs.ubi_images_need_update }}
+      ubi_images_need_update: ${{ steps.compare_previous_and_current_sha256_hash_codes.outputs.ubi_images_need_update }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Fetch current run Node.js 16 sha256 image hash code
-        id: fetch_current_run_nodejs_16_sha256_image_hash_code
+      - name: Fetch previous build sha256 image hash code
+        id: fetch_previous_build_sha256_image_hash_code
+        uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
+        with:
+          asset_pattern: "${{ env.UBI_BUILD_SHA256_FILENAME }}"
+          search_depth: 1
+          repo: ${{ github.repository }}
+          output_path: "/github/workspace/${{ env.UBI_BUILD_SHA256_FILENAME }}"
+          token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
+
+      - name: Fetch previous run sha256 image hash code
+        id: fetch_previous_run_sha256_image_hash_code
+        uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
+        with:
+          asset_pattern: "${{ env.UBI_RUN_SHA256_FILENAME }}"
+          search_depth: 1
+          repo: ${{ github.repository }}
+          output_path: "/github/workspace/${{ env.UBI_RUN_SHA256_FILENAME }}"
+          token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
+
+      - name: Fetch previous run Node.js 16 sha256 image hash code
+        id: fetch_previous_run_nodejs_16_sha256_image_hash_code
         uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
         with:
           asset_pattern: "${{ env.UBI_RUN_NODEJS_16_SHA256_FILENAME }}"
@@ -49,52 +70,62 @@ jobs:
           output_path: "/github/workspace/${{ env.UBI_RUN_NODEJS_16_SHA256_FILENAME }}"
           token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
 
-      - name: Compare current and latest sha256 hash codes
-        id: compare_current_and_latest_sha256_hash_codes
+      - name: Fetch previous run Node.js 18 sha256 image hash code
+        id: fetch_previous_run_nodejs_18_sha256_image_hash_code
+        uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
+        with:
+          asset_pattern: "${{ env.UBI_RUN_NODEJS_18_SHA256_FILENAME }}"
+          search_depth: 1
+          repo: ${{ github.repository }}
+          output_path: "/github/workspace/${{ env.UBI_RUN_NODEJS_18_SHA256_FILENAME }}"
+          token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
+
+      - name: Compare previous and current sha256 hash codes
+        id: compare_previous_and_current_sha256_hash_codes
         run: |
 
           ubi_images_need_update=()
 
+          # Run Image 
+          docker pull registry.access.redhat.com/ubi8/ubi-minimal
+          current_run_sha256_image_hash_code=$(docker image inspect registry.access.redhat.com/ubi8/ubi-minimal --format '{{json .RepoDigests}}' | jq -r '.[0]')
+          previous_run_sha256_image_hash_code=$(cat ${{ github.workspace }}/${{ env.UBI_RUN_SHA256_FILENAME }})
+
+          if [ "$previous_run_sha256_image_hash_code" != "$current_run_sha256_image_hash_code" ]; then
+            ubi_images_need_update+=("node-run")
+          fi
+
+          # Build Image 
+          docker pull registry.access.redhat.com/ubi8/ubi-minimal
+          current_build_sha256_image_hash_code=$(docker image inspect registry.access.redhat.com/ubi8/ubi-minimal --format '{{json .RepoDigests}}' | jq -r '.[0]')
+          previous_build_sha256_image_hash_code=$(cat ${{ github.workspace }}/${{ env.UBI_BUILD_SHA256_FILENAME }})
+
+          if [ "$previous_build_sha256_image_hash_code" != "$current_build_sha256_image_hash_code" ]; then
+            ubi_images_need_update+=("node-build")
+          fi
+
+          json_ubi_images_need_update=$(jq --compact-output --null-input '$ARGS.positional' --args -- "${ubi_images_need_update[@]}")
+          printf "ubi_images_need_update=%s\n" "${json_ubi_images_need_update}" >> "$GITHUB_OUTPUT"
+
           # Run Image Node.js 16
           docker pull registry.access.redhat.com/ubi8/nodejs-16-minimal
-          latest_run_nodejs_16_sha256_image_hash_code=$(docker image inspect registry.access.redhat.com/ubi8/nodejs-16-minimal --format '{{json .RepoDigests}}' | jq -r '.[0]')
-          current_run_nodejs_16_sha256_image_hash_code=$(cat ${{ github.workspace }}/${{ env.UBI_RUN_NODEJS_16_SHA256_FILENAME }})
+          current_run_nodejs_16_sha256_image_hash_code=$(docker image inspect registry.access.redhat.com/ubi8/nodejs-16-minimal --format '{{json .RepoDigests}}' | jq -r '.[0]')
+          previous_run_nodejs_16_sha256_image_hash_code=$(cat ${{ github.workspace }}/${{ env.UBI_RUN_NODEJS_16_SHA256_FILENAME }})
 
-          if [ "$current_run_nodejs_16_sha256_image_hash_code" != "$latest_run_nodejs_16_sha256_image_hash_code" ]; then
+          if [ "$previous_run_nodejs_16_sha256_image_hash_code" != "$current_run_nodejs_16_sha256_image_hash_code" ]; then
             ubi_images_need_update+=("node-16-run")
           fi
 
           ubi_images_need_update+=("node-16-run")
 
-          # # Run Image Node.js 18
-          # docker pull registry.access.redhat.com/ubi8/nodejs-18-minimal
-          # latest_run_nodejs_18_sha256_image_hash_code=$(docker image inspect registry.access.redhat.com/ubi8/nodejs-18-minimal --format '{{json .RepoDigests}}' | jq -r '.[0]')
-          # current_run_nodejs_18_sha256_image_hash_code=$(cat ${{ github.workspace }}/${{ env.UBI_RUN_NODEJS_16_SHA256_FILENAME }})
+          # Run Image Node.js 18
+          docker pull registry.access.redhat.com/ubi8/nodejs-18-minimal
+          current_run_nodejs_18_sha256_image_hash_code=$(docker image inspect registry.access.redhat.com/ubi8/nodejs-18-minimal --format '{{json .RepoDigests}}' | jq -r '.[0]')
+          previous_run_nodejs_18_sha256_image_hash_code=$(cat ${{ github.workspace }}/${{ env.UBI_RUN_NODEJS_16_SHA256_FILENAME }})
 
-          # if [ "$current_run_nodejs_18_sha256_image_hash_code" != "$latest_run_nodejs_18_sha256_image_hash_code" ]; then
-          #   ubi_images_need_update+=("node-18-run")
-          # fi
-
-          # # Run Image 
-          # docker pull registry.access.redhat.com/ubi8/ubi-minimal
-          # latest_run_sha256_image_hash_code=$(docker image inspect registry.access.redhat.com/ubi8/ubi-minimal --format '{{json .RepoDigests}}' | jq -r '.[0]')
-          # current_run_sha256_image_hash_code=$(cat ${{ github.workspace }}/${{ env.UBI_RUN_SHA256_FILENAME }})
-
-          # if [ "$current_run_sha256_image_hash_code" != "$latest_run_sha256_image_hash_code" ]; then
-          #   ubi_images_need_update+=("node-run")
-          # fi
-
-          # # Build Image 
-          # docker pull registry.access.redhat.com/ubi8/ubi-minimal
-          # latest_build_sha256_image_hash_code=$(docker image inspect registry.access.redhat.com/ubi8/ubi-minimal --format '{{json .RepoDigests}}' | jq -r '.[0]')
-          # current_build_sha256_image_hash_code=$(cat ${{ github.workspace }}/${{ env.UBI_BUILD_SHA256_FILENAME }})
-
-          # if [ "$current_build_sha256_image_hash_code" != "$latest_build_sha256_image_hash_code" ]; then
-          #   ubi_images_need_update+=("node-build")
-          # fi
-
-          json_ubi_images_need_update=$(jq --compact-output --null-input '$ARGS.positional' --args -- "${ubi_images_need_update[@]}")
-          printf "ubi_images_need_update=%s\n" "${json_ubi_images_need_update}" >> "$GITHUB_OUTPUT"
+          if [ "$previous_run_nodejs_18_sha256_image_hash_code" != "$current_run_nodejs_18_sha256_image_hash_code" ]; then
+            ubi_images_need_update+=("node-18-run")
+          fi
 
   create_stack:
     name: Create Stack
@@ -116,6 +147,50 @@ jobs:
           name: current-nodejs-16-run-image
           path: ./build-nodejs-16/run.oci
 
+      ## build image
+      - name: Upload build image
+        uses: actions/upload-artifact@v3
+        with:
+          name: current-build-image
+          path: ./build/build.oci
+
+      - name: Get build image hash code
+        run: |
+          mkdir -p hash-codes/build
+          # improvement: we dont have to re-download the image to get the hash code,
+          # we can pass the hash code from the previous step
+          docker pull registry.access.redhat.com/ubi8/ubi-minimal
+          current_build_sha256_image_hash_code=$(docker image inspect registry.access.redhat.com/ubi8/ubi-minimal --format '{{json .RepoDigests}}' | jq -r '.[0]')
+          echo $current_build_sha256_image_hash_code > hash-codes/build/build.oci.sha256
+
+      - name: Upload build image hash code
+        uses: actions/upload-artifact@v3
+        with:
+          name: current-build-image-hash-code
+          path: hash-codes/build/build.oci.sha256
+
+      ## run image
+      - name: Upload run image
+        uses: actions/upload-artifact@v3
+        with:
+          name: current-run-image
+          path: ./build/run.oci
+
+      - name: Get run image hash code
+        run: |
+          mkdir -p hash-codes/build
+          # improvement: we dont have to re-download the image to get the hash code,
+          # we can pass the hash code from the previous step
+          docker pull registry.access.redhat.com/ubi8/ubi-minimal
+          current_run_sha256_image_hash_code=$(docker image inspect registry.access.redhat.com/ubi8/ubi-minimal --format '{{json .RepoDigests}}' | jq -r '.[0]')
+          echo $current_run_sha256_image_hash_code > hash-codes/build/run.oci.sha256
+
+      - name: Upload run image hash code
+        uses: actions/upload-artifact@v3
+        with:
+          name: current-run-image-hash-code
+          path: hash-codes/build/run.oci.sha256
+
       ## nodejs 16 run image
       - name: Get nodejs 16 run image hash code
         run: |
@@ -123,8 +198,8 @@ jobs:
           # improvement: we dont have to re-download the image to get the hash code,
           # we can pass the hash code from the previous step
           docker pull registry.access.redhat.com/ubi8/nodejs-16-minimal
-          latest_run_nodejs_16_sha256_image_hash_code=$(docker image inspect registry.access.redhat.com/ubi8/nodejs-16-minimal --format '{{json .RepoDigests}}' | jq -r '.[0]')
-          echo $latest_run_nodejs_16_sha256_image_hash_code > hash-codes/build-nodejs-16/run.oci.sha256
+          current_run_nodejs_16_sha256_image_hash_code=$(docker image inspect registry.access.redhat.com/ubi8/nodejs-16-minimal --format '{{json .RepoDigests}}' | jq -r '.[0]')
+          echo $current_run_nodejs_16_sha256_image_hash_code > hash-codes/build-nodejs-16/run.oci.sha256
 
       - name: Upload nodejs 16 run image hash code
         uses: actions/upload-artifact@v3
@@ -145,58 +220,14 @@ jobs:
           # improvement: we dont have to re-download the image to get the hash code,
           # we can pass the hash code from the previous step
           docker pull registry.access.redhat.com/ubi8/nodejs-18-minimal
-          latest_run_nodejs_18_sha256_image_hash_code=$(docker image inspect registry.access.redhat.com/ubi8/nodejs-18-minimal --format '{{json .RepoDigests}}' | jq -r '.[0]')
-          echo $latest_run_nodejs_18_sha256_image_hash_code > hash-codes/build-nodejs-18/run.oci.sha256
+          current_run_nodejs_18_sha256_image_hash_code=$(docker image inspect registry.access.redhat.com/ubi8/nodejs-18-minimal --format '{{json .RepoDigests}}' | jq -r '.[0]')
+          echo $current_run_nodejs_18_sha256_image_hash_code > hash-codes/build-nodejs-18/run.oci.sha256
 
       - name: Upload nodejs 18 run image hash code
         uses: actions/upload-artifact@v3
         with:
           name: current-nodejs-18-run-image-hash-code
           path: hash-codes/build-nodejs-18/run.oci.sha256
-
-      ## run image
-      - name: Upload run image
-        uses: actions/upload-artifact@v3
-        with:
-          name: current-run-image
-          path: ./build/run.oci
-
-      - name: Get run image hash code
-        run: |
-          mkdir -p hash-codes/build
-          # improvement: we dont have to re-download the image to get the hash code,
-          # we can pass the hash code from the previous step
-          docker pull registry.access.redhat.com/ubi8/ubi-minimal
-          latest_run_sha256_image_hash_code=$(docker image inspect registry.access.redhat.com/ubi8/ubi-minimal --format '{{json .RepoDigests}}' | jq -r '.[0]')
-          echo $latest_run_sha256_image_hash_code > hash-codes/build/run.oci.sha256
-
-      - name: Upload run image hash code
-        uses: actions/upload-artifact@v3
-        with:
-          name: current-run-image-hash-code
-          path: hash-codes/build/run.oci.sha256
-
-      ## build image
-      - name: Upload build image
-        uses: actions/upload-artifact@v3
-        with:
-          name: current-build-image
-          path: ./build/build.oci
-
-      - name: Get build image hash code
-        run: |
-          mkdir -p hash-codes/build
-          # improvement: we dont have to re-download the image to get the hash code,
-          # we can pass the hash code from the previous step
-          docker pull registry.access.redhat.com/ubi8/ubi-minimal
-          latest_build_sha256_image_hash_code=$(docker image inspect registry.access.redhat.com/ubi8/ubi-minimal --format '{{json .RepoDigests}}' | jq -r '.[0]')
-          echo $latest_build_sha256_image_hash_code > hash-codes/build/build.oci.sha256
-
-      - name: Upload build image hash code
-        uses: actions/upload-artifact@v3
-        with:
-          name: current-build-image-hash-code
-          path: hash-codes/build/build.oci.sha256
 
   test:
     name: Acceptance Test
@@ -219,6 +250,7 @@ jobs:
         run: |
           echo "ommit for now, till acceptance tests pass."
 
+  # TODO test force release creation
   force_release_creation:
     name: Force Release Creation
     runs-on: ubuntu-22.04
@@ -318,24 +350,28 @@ jobs:
           repo=$(echo "${full}" | sed 's/^.*\///')
           echo "github_repo_name=${repo}" >> "$GITHUB_OUTPUT"
 
+          # Strip off 'stack' suffix from repo name
+          # some-name-stack --> some-name
+          registry_repo="${repo//-stack/}"
+          # TODO remove below line
+          echo $registry_repo
+          echo "registry_repo_name=${registry_repo}" >> "$GITHUB_OUTPUT"
+
       - name: Create Release Notes
         id: notes
-        # below commented out code is necessary to create the body of the release
-        # the problem is that this implementation is different from what we need
-        # so we might have to re implement it.
-        # uses: paketo-buildpacks/github-config/actions/stack/release-notes@main
-        # with:
-        #   build_image: "paketobuildpacks/build-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}"
-        #   run_image: "paketobuildpacks/run-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}"
-        #   build_packages_added: ${{ needs.diff.outputs.build_added }}
-        #   build_packages_modified: ${{ needs.diff.outputs.build_modified }}
-        #   build_packages_removed_with_force: ${{ needs.diff.outputs.build_removed_with_force }}
-        #   run_packages_added: ${{ needs.diff.outputs.run_added }}
-        #   run_packages_modified: ${{ needs.diff.outputs.run_modified }}
-        #   run_packages_removed_with_force: ${{ needs.diff.outputs.run_removed_with_force }}
-        #   patched_usns: ${{ needs.poll_usns.outputs.usns }}
         run: |
-          echo "not yet implemented"
+          ## TODO fetch the repo name and the tag from the 
+          ## previous steps as the jammy-base-stack does 
+          ## I should ask Michael about which is the registry and the
+          ## tag names
+          # Build: `paketocommunity/build-build-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
+          # Run: `paketocommunity/run-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
+          # Run Node.js 16: `paketocommunity/run-nodejs-16-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
+          # Run Node.js 18: `paketocommunity/run-nodejs-18-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`'
+
+          release_body='## Images'
+
+          echo "release_body=${release_body}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Release Assets
         id: assets
