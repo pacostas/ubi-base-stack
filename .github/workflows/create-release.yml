@@ -37,39 +37,44 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0 # gets full history
 
-      # - name: Fetch current run Node.js 16 sha256 image hash code
-      #   id: fetch_current_run_nodejs_16_sha256_image_hash_code
-      #   uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
-      #   with:
-      #     asset_pattern: "${{ env.UBI_RUN_NODEJS_16_SHA256_FILENAME }}"
-      #     search_depth: 1
-      #     repo: ${{ github.repository }}
-      #     output_path: "/github/workspace/${{ env.UBI_RUN_NODEJS_16_SHA256_FILENAME }}"
-      #     token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
+      - name: Fetch current run Node.js 16 sha256 image hash code
+        id: fetch_current_run_nodejs_16_sha256_image_hash_code
+        uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
+        with:
+          asset_pattern: "${{ env.UBI_RUN_NODEJS_16_SHA256_FILENAME }}"
+          search_depth: 1
+          repo: ${{ github.repository }}
+          output_path: "/github/workspace/${{ env.UBI_RUN_NODEJS_16_SHA256_FILENAME }}"
+          token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
 
       - name: Compare current and latest sha256 hash codes
         id: compare_current_and_latest_sha256_hash_codes
         run: |
 
-          echo "heeee"
-          git rev-list --tags --max-count=1
-          echo "ennnddd"
-
           ubi_images_need_update=()
 
           # Run Image Node.js 16
-          # current_run_nodejs_16_sha256_image_hash_code=$(cat ${{ github.workspace }}/${{ env.UBI_RUN_NODEJS_16_SHA256_FILENAME }})
+          docker pull registry.access.redhat.com/ubi8/nodejs-16-minimal
+          latest_run_nodejs_16_sha256_image_hash_code=$(docker image inspect registry.access.redhat.com/ubi8/nodejs-16-minimal --format '{{json .RepoDigests}}' | jq -r '.[0]')
+          current_run_nodejs_16_sha256_image_hash_code=$(cat ${{ github.workspace }}/${{ env.UBI_RUN_NODEJS_16_SHA256_FILENAME }})
+          echo "this is the current shaaaaaaaaaaaaaaaa"
+          echo "$current_run_nodejs_16_sha256_image_hash_code"
+          echo "this is the latest shaaaaaaaaaaaaaaaaa"
+          echo "$latest_run_nodejs_16_sha256_image_hash_code"
+          echo "endddd"
 
-          # latest_run_nodejs_16_sha256_image_hash_code=$(docker image inspect registry.access.redhat.com/ubi8/nodejs-16-minimal --format '{{json .RepoDigests}}' | jq -r '.[0]')
           # for now we mock above command because it does not work
+
           latest_run_nodejs_16_sha256_image_hash_code="registry.access.redhat.com/ubi8/nodejs-16-minimal@sha256:696664e684b6eed053c6abe16f9432a815cb48a2ca9b31a14742e2b3feb3a237"
 
           if [ "$current_run_nodejs_16_sha256_image_hash_code" != "$latest_run_nodejs_16_sha256_image_hash_code" ]; then
             ubi_images_need_update+=("node-16-run")
           fi
+
+          echo "this is the ubi_images_need_update"
+          echo ${ubi_images_need_update[@]}
+          echo "ennddddddddddddd"
 
           # ls ${{ github.workspace }}/${{ env.UBI_RUN_NODEJS_16_SHA256_FILENAME }}
 
@@ -96,8 +101,7 @@ jobs:
           #   ubi_images_need_update+=("build-image")
           # fi
 
-          echo ${ubi_images_need_update[@]}
-          # echo ${ubi_images_need_update[@]} >> $GITHUB_OUTPUT
+          echo ${ubi_images_need_update[@]} >> $GITHUB_OUTPUT
 
   create_stack:
     name: Create Stack
@@ -283,7 +287,7 @@ jobs:
     name: Alert on Failure
     runs-on: ubuntu-22.04
     needs: [create_stack, test, release]
-    if: ${{ always() && needs.create_stack.result == 'failure' || needs.diff.result == 'failure' || needs.test.result == 'failure' || needs.release.result == 'failure' }}
+    if: ${{ always() && needs.create_stack.result == 'failure' || needs.test.result == 'failure' || needs.release.result == 'failure' }}
     steps:
       - name: File Failure Alert Issue
         uses: paketo-buildpacks/github-config/actions/issue/file@main
@@ -295,6 +299,6 @@ jobs:
           issue_title: "Failure: Create Release workflow"
           issue_body: |
             Create Release workflow [failed](https://github.com/${{github.repository}}/actions/runs/${{github.run_id}}).
-            Please take a look to ensure CVE patches can be released. (cc @paketo-buildpacks/stacks-maintainers).
+            Unable to update ubi images.
           comment_body: |
             Another failure occurred: https://github.com/${{github.repository}}/actions/runs/${{github.run_id}}
