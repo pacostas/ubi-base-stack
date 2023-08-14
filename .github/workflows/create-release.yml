@@ -1,10 +1,8 @@
 name: Create Release
 # Add a matrix for the node versions to check against
 on:
-  # TODO ask paketo about what kind of formatter they use for the document
-  # TODO uncoment below code before merging
-  # schedule:
-  # - cron: '*/30 * * * *'  # every 30 minutes
+  schedule:
+    - cron: "*/30 * * * *" # every 30 minutes
   push:
     branches:
       - main
@@ -250,7 +248,6 @@ jobs:
         run: |
           echo "ommit for now, till acceptance tests pass."
 
-  # TODO test force release creation
   force_release_creation:
     name: Force Release Creation
     runs-on: ubuntu-22.04
@@ -353,23 +350,25 @@ jobs:
           # Strip off 'stack' suffix from repo name
           # some-name-stack --> some-name
           registry_repo="${repo//-stack/}"
-          # TODO remove below line
-          echo $registry_repo
           echo "registry_repo_name=${registry_repo}" >> "$GITHUB_OUTPUT"
 
       - name: Create Release Notes
         id: notes
         run: |
-          ## TODO fetch the repo name and the tag from the 
-          ## previous steps as the jammy-base-stack does 
-          ## I should ask Michael about which is the registry and the
-          ## tag names
-          # Build: `paketocommunity/build-build-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
-          # Run: `paketocommunity/run-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
-          # Run Node.js 16: `paketocommunity/run-nodejs-16-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
-          # Run Node.js 18: `paketocommunity/run-nodejs-18-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`'
+          release_body="\#\# Images"
+          release_body+=" \<br \/\> "
 
-          release_body='## Images'
+          release_body+="Build: paketocommunity/build${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}"          
+          release_body+=" \<br \/\> "
+
+          release_body+="Run: paketocommunity/run-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}"
+          release_body+=" \<br \/\> "
+
+          release_body+="Run Node.js 16: paketocommunity/run-nodejs-16-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}"
+          release_body+=" \<br \/\> "
+
+          release_body+="Run Node.js 18: paketocommunity/run-nodejs-18-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}"
+          release_body+=" \<br \/\> "
 
           echo "release_body=${release_body}" >> "$GITHUB_OUTPUT"
 
