@@ -40,6 +40,61 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+## TODO remove below code tag and repo_name and notes
+      - name: Set Release Tag
+        id: tag
+        run: |
+          tag="${{ github.event.inputs.version }}"
+          if [ -z "${tag}" ]; then
+            tag="${{ steps.semver.outputs.tag }}"
+          fi
+          echo "This is the tag ${tag}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Get Repository Name
+        id: repo_name
+        run: |
+          full=${{ github.repository }}
+          # Strip off the org and slash from repo name
+          # paketo-buildpacks/repo-name --> repo-name
+          repo=$(echo "${full}" | sed 's/^.*\///')
+          echo "github_repo_name=${repo}" >> "$GITHUB_OUTPUT"
+
+          # Strip off 'stack' suffix from repo name
+          # some-name-stack --> some-name
+          registry_repo="${repo//-stack/}"
+          # TODO remove below line
+          echo $registry_repo
+          echo "registry_repo_name=${registry_repo}" >> "$GITHUB_OUTPUT"
+      # CWIP  the release body fails and we should also test the force release
+      # if it gets the version and if triggers the right steps/jobs
+      - name: Create Release Notes
+        id: notes
+        run: |
+          ## TODO fetch the repo name and the tag from the 
+          ## previous steps as the jammy-base-stack does 
+          ## I should ask Michael about which is the registry and the
+          ## tag names
+          # Build: `paketocommunity/build-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
+          # Run: `paketocommunity/run-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
+          # Run Node.js 16: `paketocommunity/run-nodejs-16-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
+          # Run Node.js 18: `paketocommunity/run-nodejs-18-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`'
+
+          release_body='## Images 
+
+          Build `paketocommunity/build-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
+          Run `paketocommunity/run-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
+          Run Node.js 16 `paketocommunity/run-nodejs-16-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
+          Run Node.js 18 `paketocommunity/run-nodejs-18-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`'
+
+          release_body="${release_body//'%'/'%25'}"
+          release_body="${release_body//$'\n'/'%0A'}"
+          release_body="${release_body//$'\r'/'%0D'}"
+
+          echo "this is the release body"
+          echo $release_body
+          echo "release_body=${release_body}" >> "$GITHUB_OUTPUT"
+
       - name: Fetch previous build sha256 image hash code
         id: fetch_previous_build_sha256_image_hash_code
         uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
@@ -356,7 +411,8 @@ jobs:
           # TODO remove below line
           echo $registry_repo
           echo "registry_repo_name=${registry_repo}" >> "$GITHUB_OUTPUT"
-
+      # CWIP  the release body fails and we should also test the force release
+      # if it gets the version and if triggers the right steps/jobs
       - name: Create Release Notes
         id: notes
         run: |
@@ -364,13 +420,24 @@ jobs:
           ## previous steps as the jammy-base-stack does 
           ## I should ask Michael about which is the registry and the
           ## tag names
-          # Build: `paketocommunity/build-build-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
+          # Build: `paketocommunity/build-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
           # Run: `paketocommunity/run-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
           # Run Node.js 16: `paketocommunity/run-nodejs-16-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
           # Run Node.js 18: `paketocommunity/run-nodejs-18-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`'
 
-          release_body='## Images'
+          release_body='## Images 
 
+          Build `paketocommunity/build-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
+          Run `paketocommunity/run-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
+          Run Node.js 16 `paketocommunity/run-nodejs-16-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`
+          Run Node.js 18 `paketocommunity/run-nodejs-18-${{ steps.repo_name.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}`'
+
+          release_body="${release_body//'%'/'%25'}"
+          release_body="${release_body//$'\n'/'%0A'}"
+          release_body="${release_body//$'\r'/'%0D'}"
+
+          echo "this is the release body"
+          echo $release_body
           echo "release_body=${release_body}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Release Assets
