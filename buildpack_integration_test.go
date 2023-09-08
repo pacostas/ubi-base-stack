@@ -129,6 +129,7 @@ func testBuildpackIntegration(t *testing.T, context spec.G, it spec.S) {
 			Execute(image.ID)
 		Expect(err).NotTo(HaveOccurred())
 
+		fmt.Println(container)
 		Eventually(container).Should(BeAvailable())
 		Eventually(container).Should(Serve(MatchRegexp(`go1.*`)).OnPort(8080))
 	})

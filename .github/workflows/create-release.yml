@@ -331,8 +331,11 @@ jobs:
           name: current-nodejs-18-run-image
           path: build-nodejs-18
 
+
       - name: Run Acceptance Tests
-        run: scripts/test.sh
+        run: |
+          ls .
+          scripts/test.sh
 
   force_release_creation:
     name: Force Release Creation
