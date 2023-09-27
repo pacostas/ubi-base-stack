@@ -128,6 +128,10 @@ jobs:
             ubi_images_need_update+=("node-18-run")
           fi
 
+          echo "neeeeeeeeeeeeeeeeeeds update"
+          echo ${ubi_images_need_update[@]}
+          echo "neeeeeeeeeeeeeeeeeeds update --- end"
+
           json_ubi_images_need_update=$(jq --compact-output --null-input '$ARGS.positional' --args -- "${ubi_images_need_update[@]}")
           printf "ubi_images_need_update=%s\n" "${json_ubi_images_need_update}" >> "$GITHUB_OUTPUT"
 
@@ -169,12 +173,14 @@ jobs:
 
           current_build_sha256_image_hash_code=""
           if echo "${ubi_images_need_update[@]}" | grep -qw "node-build"; then
+            echo "inside build current"
             for ((i = 0; i < ${#ubi_image_current_hash_codes[@]}; i += 2)); do
               if [ "${ubi_image_current_hash_codes[i]}" == "node-build" ]; then
                 current_build_sha256_image_hash_code=${ubi_image_current_hash_codes[i + 1]}
               fi
             done
           else
+            echo "inside build previous"
             for ((i = 0; i < ${#ubi_image_previous_hash_codes[@]}; i += 2)); do
               if [ "${ubi_image_previous_hash_codes[i]}" == "node-build" ]; then
                 current_build_sha256_image_hash_code=${ubi_image_previous_hash_codes[i + 1]}
@@ -207,12 +213,14 @@ jobs:
 
           current_run_sha256_image_hash_code=""
           if echo "${ubi_images_need_update[@]}" | grep -qw "node-run"; then
+            echo "inside run current"
             for ((i = 0; i < ${#ubi_image_current_hash_codes[@]}; i += 2)); do
               if [ "${ubi_image_current_hash_codes[i]}" == "node-run" ]; then
                 current_run_sha256_image_hash_code=${ubi_image_current_hash_codes[i + 1]}
               fi
             done
           else
+            echo "inside run previous"
             for ((i = 0; i < ${#ubi_image_previous_hash_codes[@]}; i += 2)); do
               if [ "${ubi_image_previous_hash_codes[i]}" == "node-run" ]; then
                 current_run_sha256_image_hash_code=${ubi_image_previous_hash_codes[i + 1]}
@@ -246,12 +254,14 @@ jobs:
 
           current_run_nodejs_16_sha256_image_hash_code=""
           if echo "${ubi_images_need_update[@]}" | grep -qw "node-16-run"; then
+            echo "inside run 16 current"
             for ((i = 0; i < ${#ubi_image_current_hash_codes[@]}; i += 2)); do
               if [ "${ubi_image_current_hash_codes[i]}" == "node-16-run" ]; then
                 current_run_nodejs_16_sha256_image_hash_code=${ubi_image_current_hash_codes[i + 1]}
               fi
             done
           else
+            echo "inside run 16 previous"
             for ((i = 0; i < ${#ubi_image_previous_hash_codes[@]}; i += 2)); do
               if [ "${ubi_image_previous_hash_codes[i]}" == "node-16-run" ]; then
                 current_run_nodejs_16_sha256_image_hash_code=${ubi_image_previous_hash_codes[i + 1]}
@@ -284,12 +294,14 @@ jobs:
 
           current_run_nodejs_18_sha256_image_hash_code=""
           if echo "${ubi_images_need_update[@]}" | grep -qw "node-18-run"; then
+            echo "inside run 18 current"
             for ((i = 0; i < ${#ubi_image_current_hash_codes[@]}; i += 2)); do
               if [ "${ubi_image_current_hash_codes[i]}" == "node-18-run" ]; then
                 current_run_nodejs_18_sha256_image_hash_code=${ubi_image_current_hash_codes[i + 1]}
               fi
             done
           else
+            echo "inside run 18 previous"
             for ((i = 0; i < ${#ubi_image_previous_hash_codes[@]}; i += 2)); do
               if [ "${ubi_image_previous_hash_codes[i]}" == "node-18-run" ]; then
                 current_run_nodejs_18_sha256_image_hash_code=${ubi_image_previous_hash_codes[i + 1]}
