@@ -93,6 +93,7 @@ jobs:
           previous_build_sha256_image_hash_code_filepath=${{ github.workspace }}/${{ env.UBI_BUILD_SHA256_FILENAME }}
           previous_build_sha256_image_hash_code=""
           if [ -f "$previous_build_sha256_image_hash_code_filepath" ]; then
+            echo "buiiiiiiiiiiiiiiiiild"
             previous_build_sha256_image_hash_code=$(cat $previous_build_sha256_image_hash_code_filepath)
           fi
 
@@ -108,6 +109,7 @@ jobs:
           previous_run_sha256_image_hash_code_filepath=${{ github.workspace }}/${{ env.UBI_RUN_SHA256_FILENAME }}
           previous_run_sha256_image_hash_code=""
           if [ -f "$previous_run_sha256_image_hash_code_filepath" ]; then
+            echo "ruuuuuuuuuuuuuuuuuuuuuuun"
             previous_run_sha256_image_hash_code=$(cat $previous_run_sha256_image_hash_code_filepath)
           fi
 
@@ -123,6 +125,7 @@ jobs:
           previous_run_nodejs_16_sha256_image_hash_code_filepath=${{ github.workspace }}/${{ env.UBI_RUN_NODEJS_16_SHA256_FILENAME }}
           previous_run_nodejs_16_sha256_image_hash_code=""
           if [ -f "$previous_run_nodejs_16_sha256_image_hash_code_filepath" ]; then
+            echo "1666666666666666666"
             previous_run_nodejs_16_sha256_image_hash_code=$(cat $previous_run_nodejs_16_sha256_image_hash_code_filepath)
           fi
 
@@ -138,6 +141,7 @@ jobs:
           previous_run_nodejs_18_sha256_image_hash_code_filepath=${{ github.workspace }}/${{ env.UBI_RUN_NODEJS_18_SHA256_FILENAME }}
           previous_run_nodejs_18_sha256_image_hash_code=""
           if [ -f "$previous_run_nodejs_18_sha256_image_hash_code_filepath" ]; then
+              echo "188888888888888888888"
               previous_run_nodejs_18_sha256_image_hash_code=$(cat $previous_run_nodejs_18_sha256_image_hash_code_filepath)
           fi
 
