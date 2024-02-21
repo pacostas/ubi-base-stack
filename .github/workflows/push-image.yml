@@ -33,7 +33,7 @@ jobs:
           ## DEBUGGING LOGS
           echo "$asset_prefix"
 
-          oci_images=$(jq --arg asset_prefix "$asset_prefix" '[.release.assets[].name | select(endswith(".oci")) | split(".oci") | .[0] | split($asset_prefix) | .[1]]' "${GITHUB_EVENT_PATH}")
+          oci_images=$(jq -c --arg asset_prefix "$asset_prefix" '[.release.assets[].name | select(endswith(".oci")) | split(".oci") | .[0] | split($asset_prefix) | .[1]]' "${GITHUB_EVENT_PATH}")
           printf "oci_images: %s\n" "${oci_images}"
 
           printf "matrix=%s\n" "${oci_images}" >> "$GITHUB_OUTPUT"
@@ -90,10 +90,10 @@ jobs:
           sudo skopeo copy "oci-archive:${GITHUB_WORKSPACE}/${{ matrix.oci_image }}.oci" "docker://${DOCKERHUB_ORG}/${{ matrix.oci_image }}-${{ steps.registry-repo.outputs.name }}:${{ steps.event.outputs.tag }}"
           sudo skopeo copy "oci-archive:${GITHUB_WORKSPACE}/${{ matrix.oci_image }}.oci" "docker://${DOCKERHUB_ORG}/${{ matrix.oci_image }}-${{ steps.registry-repo.outputs.name }}:latest"
 
-          GCR_PROJECT="${GITHUB_REPOSITORY_OWNER/-/}" # translates 'paketo-buildpacks' to 'paketobuildpacks'
-          echo "${GCR_PASSWORD}" | sudo skopeo login --username "${GCR_USERNAME}" --password-stdin gcr.io
-          sudo skopeo copy "oci-archive:${GITHUB_WORKSPACE}/${{ matrix.oci_image }}.oci" "docker://gcr.io/${GCR_PROJECT}/${{ matrix.oci_image }}-${{ steps.registry-repo.outputs.name }}:${{ steps.event.outputs.tag }}"
-          sudo skopeo copy "oci-archive:${GITHUB_WORKSPACE}/${{ matrix.oci_image }}.oci" "docker://gcr.io/${GCR_PROJECT}/${{ matrix.oci_image }}-${{ steps.registry-repo.outputs.name }}:latest"
+          # GCR_PROJECT="${GITHUB_REPOSITORY_OWNER/-/}" # translates 'paketo-buildpacks' to 'paketobuildpacks'
+          # echo "${GCR_PASSWORD}" | sudo skopeo login --username "${GCR_USERNAME}" --password-stdin gcr.io
+          # sudo skopeo copy "oci-archive:${GITHUB_WORKSPACE}/${{ matrix.oci_image }}.oci" "docker://gcr.io/${GCR_PROJECT}/${{ matrix.oci_image }}-${{ steps.registry-repo.outputs.name }}:${{ steps.event.outputs.tag }}"
+          # sudo skopeo copy "oci-archive:${GITHUB_WORKSPACE}/${{ matrix.oci_image }}.oci" "docker://gcr.io/${GCR_PROJECT}/${{ matrix.oci_image }}-${{ steps.registry-repo.outputs.name }}:latest"
 
           # If the repository name contains 'bionic', let's push it to legacy image locations as well:
           #    paketobuildpacks/{build/run}:{version}-{variant}
