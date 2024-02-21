@@ -33,11 +33,9 @@ jobs:
           ## DEBUGGING LOGS
           echo "$asset_prefix"
 
-          oci_images3=$(jq --arg asset_prefix "$asset_prefix" '[.release.assets[].name | select(endswith(".oci")) | split(".oci") | .[0] | split($asset_prefix) | .[1]]' "${GITHUB_EVENT_PATH}")
-          printf "Output2: %s\n" "${oci_images3}"
+          oci_images=$(jq -c --arg asset_prefix "$asset_prefix" '[.release.assets[].name | select(endswith(".oci")) | split(".oci") | .[0] | split($asset_prefix) | .[1]]' "${GITHUB_EVENT_PATH}")
+          printf "oci_images: %s\n" "${oci_images}"
 
-          oci_images=$(jq -c '[.release.assets[].name | select(endswith(".oci")) | split(".oci") | .[0]]' "${GITHUB_EVENT_PATH}")
-          printf "Output3: %s\n" "${oci_images}"
           printf "matrix=%s\n" "${oci_images}" >> "$GITHUB_OUTPUT"
           ## DEBUGGING LOGS
 
@@ -53,9 +51,6 @@ jobs:
       - name: Parse Release Assets
         id: release_assets
         run: |
-          echo "world"
-          echo "${{ matrix.oci_image }}_download_url=$(jq -r '.release.assets[] | select(.name | endswith("${{ matrix.oci_image }}.oci")) | .url' "${GITHUB_EVENT_PATH}")"
-          echo "hello"
           echo "${{ matrix.oci_image }}_download_url=$(jq -r '.release.assets[] | select(.name | endswith("${{ matrix.oci_image }}.oci")) | .url' "${GITHUB_EVENT_PATH}")" >> "$GITHUB_OUTPUT"
 
       - name: Parse Event
