@@ -1,6 +1,7 @@
 name: Push Stack Image
 
 on:
+  workflow_dispatch:
   release:
     types:
       - published
@@ -29,6 +30,17 @@ jobs:
 
           asset_prefix="${repo_name}-${{ steps.release-version.outputs.release_version }}-"
 
+          ## DEBUGGING LOGS
+          echo "$asset_prefix"
+
+          oci_images3=$(jq --arg asset_prefix "$asset_prefix" '[.release.assets[].name | select(endswith(".oci")) | split(".oci") | .[0] | split($asset_prefix) | .[1]]' "${GITHUB_EVENT_PATH}")
+          printf "Output2: %s\n" "${oci_images3}"
+
+          oci_images=$(jq -c '[.release.assets[].name | select(endswith(".oci")) | split(".oci") | .[0]]' "${GITHUB_EVENT_PATH}")
+          printf "Output3: %s\n" "${oci_images}"
+          printf "matrix=%s\n" "${oci_images}" >> "$GITHUB_OUTPUT"
+          ## DEBUGGING LOGS
+
   push:
     name: Push
     runs-on: ubuntu-22.04
@@ -49,7 +61,9 @@ jobs:
       - name: Parse Event
         id: event
         run: |
+          echo "${{ matrix.oci_image }}"
           echo "tag=$(jq -r '.release.tag_name' "${GITHUB_EVENT_PATH}" | sed s/^v//)" >> "$GITHUB_OUTPUT"
+          # put tag outside of matrix
 
       - name: Checkout
         uses: actions/checkout@v3
