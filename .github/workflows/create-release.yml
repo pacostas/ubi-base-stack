@@ -109,23 +109,34 @@ jobs:
         id: supports_usns
         run: |
           if [ "${{ steps.get_os.outputs.os }}" == "ubi" ]; then
-            echo "supports_usns=false"
+            echo "supports_usns=false" >> "$GITHUB_OUTPUT"
           else
             echo "supports_usns=true" >> "$GITHUB_OUTPUT"
           fi
-        
+
   poll_usns:
     name: Poll USNs
     runs-on: ubuntu-22.04
     needs: preparation
-    if: ${{ needs.preparation.outputs.supports_usns == 'true' }}
     strategy:
       matrix:
         stacks: ${{ fromJSON(needs.preparation.outputs.stacks) }}
     outputs:
       usns: ${{ steps.convert_usn_array.outputs.usns }}
+      was_skipped: ${{ steps.check_skip.outputs.was_skipped }}
     steps:
+    - name: Check if Poll USNs should be skipped
+      id: check_skip
+      run: |
+        if [ "${{ needs.preparation.outputs.supports_usns }}" == "true" ]; then
+          echo "was_skipped=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "was_skipped=true" >> "$GITHUB_OUTPUT"
+          echo "usns=false" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Find and Download Previous Build Receipt
+      if: ${{ steps.check_skip.outputs.was_skipped == 'false' }}
       id: previous_build
       uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
       with:
@@ -137,6 +148,7 @@ jobs:
         strict: true
 
     - name: Find and Download Previous Run Receipt
+      if: ${{ steps.check_skip.outputs.was_skipped == 'false' }}
       id: previous_run
       uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
       with:
@@ -153,13 +165,18 @@ jobs:
 
     - name: Get Package List
       id: packages
-      if: ${{ steps.previous_build.outputs.output_path != '' && steps.previous_run.outputs.output_path != '' }}
+      if: >- 
+        ${{
+          steps.check_skip.outputs.was_skipped == 'false' &&
+          steps.previous_build.outputs.output_path != '' && steps.previous_run.outputs.output_path != '' 
+        }}
       uses: paketo-buildpacks/github-config/actions/stack/generate-package-list@main
       with:
         build_receipt: "${{ github.workspace }}/${{ matrix.stacks.build_image }}-${{ env.RECEIPT_FILENAME_SUFFIX }}"
         run_receipt: "${{ github.workspace }}/${{ matrix.stacks.run_image }}-${{ env.RECEIPT_FILENAME_SUFFIX }}"
 
     - name: Find and Download Previous Patched USNs
+      if: ${{ steps.check_skip.outputs.was_skipped == 'false' }}
       id: download_patched
       uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
       with:
@@ -172,12 +189,13 @@ jobs:
     # TODO test with USNs
     - name: Output Patched USNs as JSON String
       id: patched
-      if: ${{ steps.download_patched.outputs.output_path != '' }}
+      if: ${{ steps.check_skip.outputs.was_skipped == 'false' && steps.download_patched.outputs.output_path != '' }}
       run: |
         patched=$(jq --compact-output . < "${GITHUB_WORKSPACE}/${{ matrix.stacks.patched_usns_filename_suffix }}")
         printf "patched=%s\n" "${patched}" >> "$GITHUB_OUTPUT"
 
     - name: Get Stack Distribution Name
+      if: ${{ steps.check_skip.outputs.was_skipped == 'false' }}
       id: distro
       run: |
         # Extract distro from repo name:
@@ -187,6 +205,7 @@ jobs:
         printf "distro=%s\n" "${distro}" >> "$GITHUB_OUTPUT"
 
     - name: Get New USNs
+      if: ${{ steps.check_skip.outputs.was_skipped == 'false' }}
       id: usns
       uses: paketo-buildpacks/github-config/actions/stack/get-usns@main
       with:
@@ -199,7 +218,12 @@ jobs:
         # We have to create a directory to store the new usns,
         # otherwise we get a permission denied error
         mkdir -p new-usns
-        echo '${{ steps.usns.outputs.usns }}' > new-usns/${{ matrix.stacks.patched_usns_filename_suffix }}
+
+        if [ "${{ steps.check_skip.outputs.was_skipped }}" == "false" ]; then
+          echo '[]' > new-usns/${{ matrix.stacks.patched_usns_filename_suffix }}
+        else
+          echo '${{ steps.usns.outputs.usns }}' > new-usns/${{ matrix.stacks.patched_usns_filename_suffix }}
+        fi
 
     - name: Upload new USNs 
       uses: actions/upload-artifact@v4
@@ -208,6 +232,7 @@ jobs:
         path: new-usns/${{ matrix.stacks.patched_usns_filename_suffix }}
 
     - name: Convert usn array to boolean
+      if: ${{ steps.check_skip.outputs.was_skipped == 'false' }}
       id: convert_usn_array
       run: |
         # We convert the array to a boolean as the usns are stored on a file 
@@ -219,12 +244,12 @@ jobs:
   stack_files_changed:
     name: Determine If Stack Files Changed
     runs-on: ubuntu-22.04
-    needs: [ poll_usns, preparation ] 
+    needs: poll_usns 
     if: >- 
       ${{
-        ( ! ( needs.poll_usns.outputs.usns == 'true' && github.event_name == 'schedule' ) && needs.preparation.outputs.supports_usns == 'true' )
+        ( ! ( needs.poll_usns.outputs.usns == 'true' && github.event_name == 'schedule' ) )
         ||
-        ( ! ( github.event_name == 'schedule' ) && needs.preparation.outputs.supports_usns == 'false') 
+        ( ! ( github.event_name == 'schedule' ) && needs.poll_usns.outputs.was_skipped == 'true' ) 
       }}
     outputs:
       stack_files_changed: ${{ steps.compare.outputs.stack_files_changed }}
@@ -258,12 +283,12 @@ jobs:
 
   create_stack:
     name: Create Stack
-    needs: [poll_usns, preparation]
+    needs: [ poll_usns, preparation ] 
     if: >- 
       ${{
-        ( ! ( needs.poll_usns.outputs.usns == 'true' && github.event_name == 'schedule' ) && needs.preparation.outputs.supports_usns == 'true' )
+        ( ! ( needs.poll_usns.outputs.usns == 'true' && github.event_name == 'schedule' ) )
         ||
-        ( ! ( github.event_name == 'schedule' ) && needs.preparation.outputs.supports_usns == 'false') 
+        ( ! ( github.event_name == 'schedule' ) && needs.poll_usns.outputs.was_skipped == 'true' ) 
       }}
     strategy:
       matrix:
@@ -273,17 +298,25 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    # TODO remove before PR
+    - name: Tree
+      run: tree .
+
     - name: Create ${{ matrix.stacks.name }}
       id: create-stack
       run: |
         scripts/create.sh --stack-dir ${{ matrix.stacks.config_dir }} \
                           --build-dir ${{ matrix.stacks.output_dir }}
 
+    # TODO remove before PR
+    - name: Tree
+      run: tree .
+
     - name: Generate Package Receipts
       id: receipts
       run: |
-        scripts/receipts.sh --build-image "${{ matrix.stacks.output_dir }}" \
-                            --run-image "${{ matrix.stacks.output_dir }}" \
+        scripts/receipts.sh --build-image "${{ matrix.stacks.output_dir }}/build.oci" \
+                            --run-image "${{ matrix.stacks.output_dir }}/run.oci" \
                             --build-receipt current-build-receipt-${{ matrix.stacks.name }} \
                             --run-receipt current-run-receipt-${{ matrix.stacks.name }}
         echo "build_receipt=current-build-receipt-${{ matrix.stacks.name }}" >> "$GITHUB_OUTPUT"
@@ -360,6 +393,10 @@ jobs:
         echo '{"components":[]}' > "${{ github.workspace }}/previous-build-receipt-${{ matrix.stacks.name }}"
         echo '{"components":[]}' > "${{ github.workspace }}/previous-run-receipt-${{ matrix.stacks.name }}"
 
+    # TODO remove before PR
+    - name: Treee
+      run: tree .
+
     - name: Find and Download Previous Build Receipt
       if: ${{ steps.check_previous.outputs.exists == 'true' }}
       uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
@@ -413,17 +450,15 @@ jobs:
          run=$(jq '. | length' <<< "${RUN_REMOVED}")
          echo "Run packages removed: ${run}"
 
-        # # TODO uncomented for testing purposes
-        #  ## TODO validate with tests that this will work
-        #  # only fail if packages are removed AND the release has not been forced
-        #  if [ "${build}" -gt 0 ] || [ "${run}" -gt 0 ]; then
-        #    if [ "${{ github.event.inputs.force }}" != 'true' ]; then
-        #      echo "Packages removed without authorization. Stack cannot be released."
-        #      exit 1
-        #    else
-        #      echo "packages_removed=true" >> "$GITHUB_OUTPUT"
-        #    fi
-        #  fi
+         # only fail if packages are removed AND the release has not been forced
+         if [ "${build}" -gt 0 ] || [ "${run}" -gt 0 ]; then
+           if [ "${{ github.event.inputs.force }}" != 'true' ]; then
+             echo "Packages removed without authorization. Stack cannot be released."
+             exit 1
+           else
+             echo "packages_removed=true" >> "$GITHUB_OUTPUT"
+           fi
+         fi
 
     # TODO check if there is a more nice way for below code to handle the env variables
     - name: Create/Upload variable artifacts
