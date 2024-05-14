@@ -11,7 +11,9 @@
       "build_receipt_filename": "build",
       "run_receipt_filename": "run",
       "patched_usns_filename_suffix": "patched-usns.json",
-      "create_build_image": true
+      "create_build_image": true,
+      "build_image_registry": "docker://registry.access.redhat.com/ubi8/ubi-minimal",
+      "run_image_registry": "docker://registry.access.redhat.com/ubi8/ubi-minimal"
     },
     {
       "name": "java-8",
@@ -21,7 +23,8 @@
       "run_image": "run-java-8",
       "build_receipt_filename": "build-java-8",
       "run_receipt_filename": "run-java-8",
-      "patched_usns_filename_suffix": "java-8-patched-usns.json"
+      "patched_usns_filename_suffix": "java-8-patched-usns.json",
+      "run_image_registry": "docker://registry.access.redhat.com/ubi8/openjdk-8-runtime"
     },
     {
       "name": "java-11",
@@ -31,7 +34,8 @@
       "run_image": "run-java-11",
       "build_receipt_filename": "build-java-11",
       "run_receipt_filename": "run-java-11",
-      "patched_usns_filename_suffix": "java-11-patched-usns.json"
+      "patched_usns_filename_suffix": "java-11-patched-usns.json",
+      "run_image_registry": "docker://registry.access.redhat.com/ubi8/openjdk-11-runtime"
     },
     {
       "name": "java-17",
@@ -41,7 +45,8 @@
       "run_image": "run-java-17",
       "build_receipt_filename": "build-java-17",
       "run_receipt_filename": "run-java-17",
-      "patched_usns_filename_suffix": "java-17-patched-usns.json"
+      "patched_usns_filename_suffix": "java-17-patched-usns.json",
+      "run_image_registry": "docker://registry.access.redhat.com/ubi8/openjdk-17-runtime"
     },
     {
       "name": "java-21",
@@ -51,7 +56,8 @@
       "run_image": "run-java-21",
       "build_receipt_filename": "build-java-21",
       "run_receipt_filename": "run-java-21",
-      "patched_usns_filename_suffix": "java-21-patched-usns.json"
+      "patched_usns_filename_suffix": "java-21-patched-usns.json",
+      "run_image_registry": "docker://registry.access.redhat.com/ubi8/openjdk-21-runtime"
     },
     {
       "name": "nodejs-16",
@@ -61,7 +67,8 @@
       "run_image": "run-nodejs-16",
       "build_receipt_filename": "build-nodejs-16",
       "run_receipt_filename": "run-nodejs-16",
-      "patched_usns_filename_suffix": "nodejs-16-patched-usns.json"
+      "patched_usns_filename_suffix": "nodejs-16-patched-usns.json",
+      "run_image_registry": "docker://registry.access.redhat.com/ubi8/nodejs-16-minimal"
     },
     {
       "name": "nodejs-18",
@@ -71,7 +78,8 @@
       "run_image": "run-nodejs-18",
       "build_receipt_filename": "build-nodejs-18",
       "run_receipt_filename": "run-nodejs-18",
-      "patched_usns_filename_suffix": "nodejs-18-patched-usns.json"
+      "patched_usns_filename_suffix": "nodejs-18-patched-usns.json",
+      "run_image_registry": "docker://registry.access.redhat.com/ubi8/nodejs-18-minimal"
     },
     {
       "name": "nodejs-20",
@@ -81,7 +89,8 @@
       "run_image": "run-nodejs-20",
       "build_receipt_filename": "build-nodejs-20",
       "run_receipt_filename": "run-nodejs-20",
-      "patched_usns_filename_suffix": "nodejs-20-patched-usns.json"
+      "patched_usns_filename_suffix": "nodejs-20-patched-usns.json",
+      "run_image_registry": "docker://registry.access.redhat.com/ubi8/nodejs-20-minimal"
     }
   ]
 }
