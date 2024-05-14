@@ -23,16 +23,6 @@ on:
 
 concurrency: release
 env:
-  UBI_BUILD_SHA256_FILENAME: build.oci.sha256
-  UBI_RUN_SHA256_FILENAME: run.oci.sha256
-  UBI_RUN_NODEJS_16_SHA256_FILENAME: run-nodejs-16.oci.sha256
-  UBI_RUN_NODEJS_18_SHA256_FILENAME: run-nodejs-18.oci.sha256
-  UBI_RUN_NODEJS_20_SHA256_FILENAME: run-nodejs-20.oci.sha256
-  UBI_RUN_JAVA_8_SHA256_FILENAME: run-java-8.oci.sha256
-  UBI_RUN_JAVA_11_SHA256_FILENAME: run-java-11.oci.sha256
-  UBI_RUN_JAVA_17_SHA256_FILENAME: run-java-17.oci.sha256
-  UBI_RUN_JAVA_21_SHA256_FILENAME: run-java-21.oci.sha256
-
   RECEIPT_FILENAME_SUFFIX: "receipt.cyclonedx.json"
   STACKS_FILENAME: "images.json"
 
@@ -139,12 +129,12 @@ jobs:
 
       - name: Get current run image hascode of stack ${{ matrix.stacks.name }}
         run: |
-          skopeo inspect --format "{{.Digest}}" ${{ matrix.stacks.run_image_registry }} > current_${{ matrix.stacks.run_image }}.oci.sha256
+          skopeo inspect --format "{{.Digest}}" ${{ matrix.stacks.base_run_container_image }} > current_${{ matrix.stacks.run_image }}.oci.sha256
 
       - name: Get current build image hascode of stack ${{ matrix.stacks.name }}
         if: ${{ matrix.stacks.create_build_image == true }}
         run: |
-          skopeo inspect --format "{{.Digest}}" ${{ matrix.stacks.build_image_registry }} > current_${{ matrix.stacks.build_image }}.oci.sha256
+          skopeo inspect --format "{{.Digest}}" ${{ matrix.stacks.base_build_container_image }} > current_${{ matrix.stacks.build_image }}.oci.sha256
 
       - name: Treeee
         run: tree .
@@ -378,21 +368,24 @@ jobs:
         registry_repo="${repo//-stack/}"
         echo "registry_repo_name=${registry_repo}" >> "$GITHUB_OUTPUT"
 
+    - name: Create image registry names
+      id: image_registry_names
+      run: |
+        echo "run_image=${{ needs.preparation.outputs.repo_owner }}/${{ matrix.stacks.run_image }}-${{ needs.preparation.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
+        if [ "${{ matrix.stacks.create_build_image }}" == "true" ]; then
+          echo "build_image=${{ needs.preparation.outputs.repo_owner }}/${{ matrix.stacks.build_image }}-${{ needs.preparation.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
+        else
+          echo "build_image=" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Create Release Notes
       id: notes
       uses: pacostas/github-config/actions/stack/release-notes@create-release-reusable
       with:
-        build_image: "${{ needs.preparation.outputs.repo_owner }}/${{ matrix.stacks.build_image }}-${{ needs.preparation.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}"
-        run_image: "${{ needs.preparation.outputs.repo_owner }}/${{ matrix.stacks.run_image }}-${{ needs.preparation.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}"
-        build_packages_added: ${{ needs.diff.outputs.build_added }}
-        build_packages_modified: ${{ needs.diff.outputs.build_modified }}
-        build_packages_removed_with_force: ${{ needs.diff.outputs.build_removed_with_force }}
-        run_packages_added: ${{ needs.diff.outputs.run_added }}
-        run_packages_modified: ${{ needs.diff.outputs.run_modified }}
-        run_packages_removed_with_force: ${{ needs.diff.outputs.run_removed_with_force }}
-        patched_usns: ${{ steps.poll_ubi_images.outputs.usns }}
+        build_image: "${{ steps.image_registry_names.outputs.build_image }}"
+        run_image: "${{ needs.image_registry_names.outputs.run_image }}"
+        supports_usns: ${{ needs.preparation.outputs.support_usns }}
 
-# TODO test below step
     - name: Setup Release Assets
       id: assets
       run: |
@@ -413,13 +406,14 @@ jobs:
 
         # Exclude/filter the assets that are not required for the release.
           if [ "${{ matrix.stacks.create_build_image }}" == "false" ]; then
-          assets=$(jq -c --arg stack_name "${{ matrix.stacks.name }}" '
+          assets=$(jq -c --arg stack_name "${{ matrix.stacks.name }}" '[ 
             .[] 
             | select(
                 .path 
                 | (contains("current-build-image-" + $stack_name + "/build.oci"))
                 | not
-            )' <<< "$assets")
+            )
+          ]' <<< "$assets")
         fi
 
         echo "${assets}" > ${{ matrix.stacks.name }}-release-assets
@@ -465,7 +459,7 @@ jobs:
 
         printf "assets=$merged_release_assets" >> "$GITHUB_OUTPUT"
 
-    - name: download release bodies
+    - name: Download release bodies
       uses: actions/download-artifact@v4
       with:
         pattern: |
@@ -512,7 +506,6 @@ jobs:
         body: ${{ fromJson(steps.merge_release_bodies.outputs.release_body).text }}
         draft: false
         assets: ${{ steps.merge_release_assets.outputs.assets }}
-
 
   failure:
     name: Alert on Failure
