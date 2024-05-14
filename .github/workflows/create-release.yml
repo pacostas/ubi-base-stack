@@ -1,11 +1,12 @@
 name: Create Release
 
 on:
-  schedule:
-    - cron: "*/30 * * * *" # every 30 minutes
-  push:
-    branches:
-      - main
+# TODO uncomment below code before pr
+  # schedule:
+  #   - cron: "*/30 * * * *" # every 30 minutes
+  # push:
+  #   branches:
+  #     - main
   workflow_dispatch:
     inputs:
       version:
