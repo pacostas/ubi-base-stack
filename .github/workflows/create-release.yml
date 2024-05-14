@@ -1,11 +1,12 @@
 name: Create Release
 
 on:
-  schedule:
-    - cron: "*/30 * * * *" # every 30 minutes
-  push:
-    branches:
-      - main
+# TODO uncomment below code before pr
+  # schedule:
+  #   - cron: "*/30 * * * *" # every 30 minutes
+  # push:
+  #   branches:
+  #     - main
   workflow_dispatch:
     inputs:
       version:
@@ -64,22 +65,18 @@ jobs:
               "run_image": "run",
               "run_receipt_filename": "run",
               "patched_usns_filename_suffix": "patched-usns.json",
-              "create_build_image" : true
+              "create_build_image": true
             }
           ]
           EOF
           )
 
           support_usns=true
+
           if [[ -f ${{ env.STACKS_FILENAME }} ]]; then
             stacks=$(jq '[.images[] |
             . +
             {
-              "build_image": ("build-" + .name ),
-              "build_receipt_filename": ("build-" + .name),
-              "run_image": ("run-" + .name ),
-              "run_receipt_filename": ("run-" + .name),
-              "patched_usns_filename_suffix": (.name + "-patched-usns.json"),
               "create_build_image": (.create_build_image // false)
             }]' ${{ env.STACKS_FILENAME }} )
 
@@ -111,21 +108,33 @@ jobs:
   poll_ubi_images:
     name: Poll UBI Images
     runs-on: ubuntu-22.04
+    needs: preparation
+    strategy:
+      matrix:
+        stacks: ${{ fromJSON(needs.preparation.outputs.stacks) }}
     outputs:
       ubi_images_need_update: ${{ steps.compare_previous_and_current_sha256_hash_codes.outputs.ubi_images_need_update }}
       ubi_image_previous_hash_codes: ${{ steps.compare_previous_and_current_sha256_hash_codes.outputs.ubi_image_previous_hash_codes }}
       ubi_image_current_hash_codes: ${{ steps.compare_previous_and_current_sha256_hash_codes.outputs.ubi_image_current_hash_codes }}
-
     steps:
-
-      - name: Find and Download Previous hash codes
-        id: fetch_previous_hash_codes
+      - name: Find and Download Previous build image hash code of stack ${{ matrix.stacks.build_image }}
+        if: ${{ matrix.stacks.create_build_image == true }}
         uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
         with:
-          asset_pattern: ".oci.sha256"
+          asset_pattern: "${{ matrix.stacks.build_image }}.oci.sha256"
           search_depth: 1
           repo: ${{ github.repository }}
-          output_path: "/github/workspace/previous_image_hash_codes"
+          output_path: "/github/workspace/previous_image_hash_codes/${{ matrix.stacks.build_image }}.oci.sha256"
+          token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
+      
+
+      - name: Find and Download Previous run image hash code of stack ${{ matrix.stacks.run_image }}
+        uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
+        with:
+          asset_pattern: "${{ matrix.stacks.run_image }}.oci.sha256"
+          search_depth: 1
+          repo: ${{ github.repository }}
+          output_path: "/github/workspace/previous_image_hash_codes/${{ matrix.stacks.run_image }}.oci.sha256"
           token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
 
       - name: Treeee
