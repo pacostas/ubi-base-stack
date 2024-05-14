@@ -32,7 +32,82 @@ env:
   UBI_RUN_JAVA_17_SHA256_FILENAME: run-java-17.oci.sha256
   UBI_RUN_JAVA_21_SHA256_FILENAME: run-java-21.oci.sha256
 
+  RECEIPT_FILENAME_SUFFIX: "receipt.cyclonedx.json"
+  STACKS_FILENAME: "images.json"
+
 jobs:
+  preparation:
+    name: Preparation
+    runs-on: ubuntu-22.04
+    outputs:
+      stacks: ${{ steps.get-stack-names.outputs.stacks }}
+      support_usns: ${{ steps.get-stack-names.outputs.support_usns }}
+      github_repo_name: ${{ steps.repo.outputs.github_repo_name }}
+      registry_repo_name: ${{ steps.repo.outputs.registry_repo_name }}
+      repo_owner: ${{ steps.repo.outputs.repo_owner }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Get stack names and USN support
+        id: get-stack-names
+        run: |
+          stacks=$(
+            cat <<EOF
+          [
+            {
+              "name": "stack",
+              "config_dir": "stack",
+              "output_dir": "build",
+              "build_image": "build",
+              "build_receipt_filename": "build",
+              "run_image": "run",
+              "run_receipt_filename": "run",
+              "patched_usns_filename_suffix": "patched-usns.json",
+              "create_build_image" : true
+            }
+          ]
+          EOF
+          )
+
+          support_usns=true
+          if [[ -f ${{ env.STACKS_FILENAME }} ]]; then
+            stacks=$(jq '[.images[] |
+            . +
+            {
+              "build_image": ("build-" + .name ),
+              "build_receipt_filename": ("build-" + .name),
+              "run_image": ("run-" + .name ),
+              "run_receipt_filename": ("run-" + .name),
+              "patched_usns_filename_suffix": (.name + "-patched-usns.json"),
+              "create_build_image": (.create_build_image // false)
+            }]' ${{ env.STACKS_FILENAME }} )
+
+            support_usns=$( jq '.support_usns' ${{ env.STACKS_FILENAME }} )
+          fi
+
+          stacks=$(jq -c <<< "$stacks" )
+          printf "stacks=%s\n" "${stacks}" >> "$GITHUB_OUTPUT"
+          printf "support_usns=%s\n" "${support_usns}" >> "$GITHUB_OUTPUT"
+
+      - name: Get Repository Name
+        id: repo
+        run: |
+          full=${{ github.repository }}
+          # Strip off the org and slash from repo name
+          # paketo-buildpacks/jammy-base-stack --> jammy-base-stack
+          repo=$(echo "${full}" | sed 's/^.*\///')
+          echo "github_repo_name=${repo}" >> "$GITHUB_OUTPUT"
+
+          # Strip off 'stack' suffix from repo name
+          # paketo-buildpacks/jammy-base-stack --> jammy-base
+          registry_repo="${repo//-stack/}"
+          echo "registry_repo_name=${registry_repo}" >> "$GITHUB_OUTPUT"
+
+          # translates 'paketo-buildpacks' to 'paketobuildpacks'
+          repo_owner="${GITHUB_REPOSITORY_OWNER/-/}"
+          printf "repo_owner=%s\n" "${repo_owner}" >> "$GITHUB_OUTPUT"
+
   poll_ubi_images:
     name: Poll UBI Images
     runs-on: ubuntu-22.04
@@ -42,98 +117,22 @@ jobs:
       ubi_image_current_hash_codes: ${{ steps.compare_previous_and_current_sha256_hash_codes.outputs.ubi_image_current_hash_codes }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
 
-      - name: Find and Download Previous build sha256 image hash code
-        id: fetch_previous_build_sha256_image_hash_code
+      - name: Find and Download Previous hash codes
+        id: fetch_previous_hash_codes
         uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
         with:
-          asset_pattern: "${{ env.UBI_BUILD_SHA256_FILENAME }}"
+          asset_pattern: ".oci.sha256"
           search_depth: 1
           repo: ${{ github.repository }}
-          output_path: "/github/workspace/${{ env.UBI_BUILD_SHA256_FILENAME }}"
+          output_path: "/github/workspace/previous_image_hash_codes"
           token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
 
-      - name: Find and Download Previous run sha256 image hash code
-        id: fetch_previous_run_sha256_image_hash_code
-        uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
-        with:
-          asset_pattern: "${{ env.UBI_RUN_SHA256_FILENAME }}"
-          search_depth: 1
-          repo: ${{ github.repository }}
-          output_path: "/github/workspace/${{ env.UBI_RUN_SHA256_FILENAME }}"
-          token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
+      - name: Treeee
+        run: tree .
 
-      - name: Find and Download Previous run Node.js 16 sha256 image hash code
-        id: fetch_previous_run_nodejs_16_sha256_image_hash_code
-        uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
-        with:
-          asset_pattern: "${{ env.UBI_RUN_NODEJS_16_SHA256_FILENAME }}"
-          search_depth: 1
-          repo: ${{ github.repository }}
-          output_path: "/github/workspace/${{ env.UBI_RUN_NODEJS_16_SHA256_FILENAME }}"
-          token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
-
-      - name: Find and Download Previous run Node.js 18 sha256 image hash code
-        id: fetch_previous_run_nodejs_18_sha256_image_hash_code
-        uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
-        with:
-          asset_pattern: "${{ env.UBI_RUN_NODEJS_18_SHA256_FILENAME }}"
-          search_depth: 1
-          repo: ${{ github.repository }}
-          output_path: "/github/workspace/${{ env.UBI_RUN_NODEJS_18_SHA256_FILENAME }}"
-          token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
-
-      - name: Find and Download Previous run Node.js 20 sha256 image hash code
-        id: fetch_previous_run_nodejs_20_sha256_image_hash_code
-        uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
-        with:
-          asset_pattern: "${{ env.UBI_RUN_NODEJS_20_SHA256_FILENAME }}"
-          search_depth: 1
-          repo: ${{ github.repository }}
-          output_path: "/github/workspace/${{ env.UBI_RUN_NODEJS_20_SHA256_FILENAME }}"
-          token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
-
-      - name: Find and Download Previous run Java 8 sha256 image hash code
-        id: fetch_previous_run_java_8_sha256_image_hash_code
-        uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
-        with:
-          asset_pattern: "${{ env.UBI_RUN_JAVA_8_SHA256_FILENAME }}"
-          search_depth: 1
-          repo: ${{ github.repository }}
-          output_path: "/github/workspace/${{ env.UBI_RUN_JAVA_8_SHA256_FILENAME }}"
-          token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
-
-      - name: Find and Download Previous run Java 11 sha256 image hash code
-        id: fetch_previous_run_java_11_sha256_image_hash_code
-        uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
-        with:
-          asset_pattern: "${{ env.UBI_RUN_JAVA_11_SHA256_FILENAME }}"
-          search_depth: 1
-          repo: ${{ github.repository }}
-          output_path: "/github/workspace/${{ env.UBI_RUN_JAVA_11_SHA256_FILENAME }}"
-          token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
-
-      - name: Find and Download Previous run Java 17 sha256 image hash code
-        id: fetch_previous_run_java_17_sha256_image_hash_code
-        uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
-        with:
-          asset_pattern: "${{ env.UBI_RUN_JAVA_17_SHA256_FILENAME }}"
-          search_depth: 1
-          repo: ${{ github.repository }}
-          output_path: "/github/workspace/${{ env.UBI_RUN_JAVA_17_SHA256_FILENAME }}"
-          token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
-
-      - name: Find and Download Previous run Java 21 sha256 image hash code
-        id: fetch_previous_run_java_21_sha256_image_hash_code
-        uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
-        with:
-          asset_pattern: "${{ env.UBI_RUN_JAVA_21_SHA256_FILENAME }}"
-          search_depth: 1
-          repo: ${{ github.repository }}
-          output_path: "/github/workspace/${{ env.UBI_RUN_JAVA_21_SHA256_FILENAME }}"
-          token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
+      - name: Exit
+        run: exit 1
 
       - name: Compare previous and current sha256 hash codes
         id: compare_previous_and_current_sha256_hash_codes
