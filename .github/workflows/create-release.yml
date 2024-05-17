@@ -1,7 +1,7 @@
 name: Create Release
 
 # TODO add next to the images the stack name
-
+# TODO  put the github-config change on the ubi -base stack 
 on:
 # TODO uncomment below code before pr
   # schedule:
@@ -444,13 +444,6 @@ jobs:
        echo "RUN_ADDED=$(cat ${{ matrix.stacks.name }}_run_added)" >> $GITHUB_ENV
        echo "RUN_MODIFIED=$(cat ${{ matrix.stacks.name }}_run_modified)" >> $GITHUB_ENV
 
-    - name: Loooooog
-      run: |
-       echo ${BUILD_ADDED}
-       echo ${BUILD_MODIFIED}
-       echo ${RUN_ADDED}
-       echo ${RUN_MODIFIED}
-
     - name: Compare With Previous Release
       id: compare
       run: |
@@ -527,9 +520,6 @@ jobs:
         pattern: |
            current-run-image-*
 
-    - name: Treeeee
-      run: tree .
-
     - name: Create OCI artifacts destination directory
       run: |
         echo '${{ needs.preparation.outputs.stacks }}' | jq -c '.[]' | while read -r stack; do
@@ -560,8 +550,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [create_stack, run_if_stack_files_changed, test, force_release_creation, preparation]
     if: |
-      ${{ always() &&
-      needs.diff.result == 'success' &&
+      ${{ needs.diff.result == 'success' &&
       needs.test.result == 'success' &&
         ( needs.run_if_packages_changed.result == 'success' ||
          needs.run_if_stack_files_changed.result == 'success' ||

@@ -11,8 +11,8 @@
       "build_receipt_filename": "build",
       "run_receipt_filename": "run",
       "create_build_image": true,
-      "base_build_container_image": "docker://registry.access.redhat.com/ubi8/ubi-minimal",
-      "base_run_container_image": "docker://registry.access.redhat.com/ubi8/ubi-minimal"
+      "base_build_container_image": "docker://registry.access.redhat.com/ubi8/ubi-minimal:8.8-1072.1696517598",
+      "base_run_container_image": "docker://registry.access.redhat.com/ubi8/ubi-minimal:8.8-1072.1696517598"
     },
     {
       "name": "java-8",
@@ -32,7 +32,7 @@
       "run_image": "run-java-11",
       "build_receipt_filename": "build-java-11",
       "run_receipt_filename": "run-java-11",
-      "base_run_container_image": "docker://registry.access.redhat.com/ubi8/openjdk-11-runtime"
+      "base_run_container_image": "docker://registry.access.redhat.com/ubi8/openjdk-11-runtime:1.17-1.1696520434"
     },
     {
       "name": "java-17",
@@ -72,7 +72,7 @@
       "run_image": "run-nodejs-18",
       "build_receipt_filename": "build-nodejs-18",
       "run_receipt_filename": "run-nodejs-18",
-      "base_run_container_image": "docker://registry.access.redhat.com/ubi8/nodejs-18-minimal"
+      "base_run_container_image": "docker://registry.access.redhat.com/ubi8/nodejs-18-minimal:1-75"
     },
     {
       "name": "nodejs-20",
@@ -82,7 +82,7 @@
       "run_image": "run-nodejs-20",
       "build_receipt_filename": "build-nodejs-20",
       "run_receipt_filename": "run-nodejs-20",
-      "base_run_container_image": "docker://registry.access.redhat.com/ubi8/nodejs-20-minimal"
+      "base_run_container_image": "docker://registry.access.redhat.com/ubi8/nodejs-20-minimal:1-16"
     }
   ]
 }
