@@ -84,8 +84,10 @@ func TestAcceptance(t *testing.T) {
 
 	docker := occam.NewDocker()
 
-	RegistryUrl = os.Getenv("REGISTRY_URL")
-	Expect(RegistryUrl).NotTo(Equal(""))
+	// RegistryUrl = os.Getenv("REGISTRY_URL")
+	// Expect(RegistryUrl).NotTo(Equal(""))
+
+	RegistryUrl = "localhost:5000"
 
 	root, err = filepath.Abs(".")
 	Expect(err).ToNot(HaveOccurred())
@@ -123,17 +125,49 @@ func TestAcceptance(t *testing.T) {
 
 	buildpackStore := occam.NewBuildpackStore()
 
+	// ubiNodejsExtensionPath, err := filepath.Abs("/home/costas/RedHat/buildpacks/buildpacks/ubi-nodejs-extension")
+	// Expect(err).ToNot(HaveOccurred())
+
+	// settings.Extensions.UbiNodejsExtension.Online, err = buildpackStore.Get.
+	// 	WithVersion("0.0.1").
+	// 	Execute(ubiNodejsExtensionPath)
+	// Expect(err).ToNot(HaveOccurred())
+
 	settings.Extensions.UbiNodejsExtension.Online, err = buildpackStore.Get.
 		Execute(settings.Config.UbiNodejsExtension)
 	Expect(err).ToNot(HaveOccurred())
+
+	// nodejsPath, err := filepath.Abs("/home/costas/RedHat/buildpacks/buildpacks/nodejs")
+	// Expect(err).ToNot(HaveOccurred())
+
+	// settings.Buildpacks.Nodejs.Online, err = buildpackStore.Get.
+	// 	WithVersion("0.0.1").
+	// 	Execute(nodejsPath)
+	// Expect(err).ToNot(HaveOccurred())
 
 	settings.Buildpacks.Nodejs.Online, err = buildpackStore.Get.
 		Execute(settings.Config.Nodejs)
 	Expect(err).ToNot(HaveOccurred())
 
+	// buildPlanPath, err := filepath.Abs("/home/costas/RedHat/buildpacks/buildpacks/build-plan")
+	// Expect(err).ToNot(HaveOccurred())
+
+	// settings.Buildpacks.BuildPlan.Online, err = buildpackStore.Get.
+	// 	WithVersion("0.0.1").
+	// 	Execute(buildPlanPath)
+	// Expect(err).ToNot(HaveOccurred())
+
 	settings.Buildpacks.BuildPlan.Online, err = buildpackStore.Get.
 		Execute(settings.Config.BuildPlan)
 	Expect(err).ToNot(HaveOccurred())
+
+	// goDistPath, err := filepath.Abs("/home/costas/RedHat/buildpacks/buildpacks/go-dist")
+	// Expect(err).ToNot(HaveOccurred())
+
+	// settings.Buildpacks.GoDist.Online, err = buildpackStore.Get.
+	// 	WithVersion("0.0.1").
+	// 	Execute(goDistPath)
+	// Expect(err).ToNot(HaveOccurred())
 
 	settings.Buildpacks.GoDist.Online, err = buildpackStore.Get.
 		Execute(settings.Config.GoDist)
