@@ -1,0 +1,22 @@
+{
+  "repository": "pacostas/jammy-base-stack",
+  "inputs": {
+    "version": "1.1.1"
+  },
+  "ref": "refs/heads/main",
+  "workflow": ".github/workflows/push-image.yml",
+  "release": {
+    "assets": [
+      {
+        "name": "ubi-base-stack-1.1.1-build.oci"
+      },
+      {
+        "name": "ubi-base-stack-1.1.1-run-java-11.oci"
+      },
+      {
+        "name": "ubi-base-stack-1.1.1-run-node-20.oci"
+      }
+    ]
+  }
+}
+
