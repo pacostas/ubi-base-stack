@@ -13,7 +13,7 @@ on:
 
 env:
   REGISTRIES_FILEPATH: "registries.json"
-  GCR_REGISTRY: "gcr.io"
+  GCR_REGISTRY: "ghcr.io"
   GCR_USERNAME: "_json_key"
 
 jobs:
