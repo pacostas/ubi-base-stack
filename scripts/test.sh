@@ -16,7 +16,7 @@ source "${PROG_DIR}/.util/tools.sh"
 source "${PROG_DIR}/.util/print.sh"
 
 function main() {
-  local clean token test_only_stacks do_not_create_stacks
+  local clean token test_only_stacks validate_stack_builds
   local registryPort registryPid localRegistry setupLocalRegistry
 
   help=""
@@ -25,7 +25,7 @@ function main() {
   test_only_stacks=""
   registryPid=""
   setupLocalRegistry=""
-  do_not_create_stacks="false"
+  validate_stack_builds="false"
 
   while [[ "${#}" != 0 ]]; do
     case "${1}" in
@@ -49,8 +49,8 @@ function main() {
         shift 2
         ;;
 
-      --do-not-create-stacks)
-        do_not_create_stacks="true"
+      --validate-stack-builds)
+        validate_stack_builds="true"
         shift 1
         ;;
 
@@ -108,8 +108,8 @@ function main() {
 
   stack_output_builds_exist=$(stack_builds_exist)
 
-  if [[ "${stack_output_builds_exist}" == "false" && "${do_not_create_stacks}" == "true" ]]; then
-    util::print::error "Stack builds do not exist. Exiting with error code..."
+  if [[ "${stack_output_builds_exist}" == "false" && "${validate_stack_builds}" == "true" ]]; then
+    util::print::error "Stack builds are not valid."
     exit 1
   fi
 
@@ -181,7 +181,7 @@ OPTIONS
   --clean          -c     Clears contents of stack output directory before running tests
   --token <token>  -t     Token used to download assets from GitHub (e.g. jam, pack, etc) (optional)
   --test-only-stacks      Runs the tests of the stacks passed to this argument (e.g. java-8 nodejs-16) (optional)
-  --do-not-create-stacks  If stacks are not available, do not create them and exit with an error (optional)
+  --validate-stack-builds Validates that the stack builds are present before running tests (optional)
   --help           -h     Prints the command usage
 USAGE
 }
