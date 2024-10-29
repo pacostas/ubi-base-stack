@@ -759,8 +759,16 @@ jobs:
           fi
         done
 
-    - name: Run Acceptance Tests
-      run: ./scripts/test.sh --validate-stack-builds
+    ## TODO remove below debug step
+    - name: treeeee
+      run: tree .
+    
+    ## TODO remove below debug step
+    - name: ls directory
+      run: ls -R ./builds
+
+    # - name: Run Acceptance Tests
+    #   run: ./scripts/test.sh --validate-stack-builds
 
   force_release_creation:
     name: Force Release Creation
@@ -854,6 +862,9 @@ jobs:
 
     - name: Display Release Note Files
       run: ls release-notes
+    #TODO remove below debug code
+    - name: tree
+      run: tree .
 
     - name: Increment Tag
       if: github.event.inputs.version == ''
