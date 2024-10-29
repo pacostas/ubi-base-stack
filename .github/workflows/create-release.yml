@@ -24,7 +24,6 @@ concurrency: release
 env:
   STACKS_FILEPATH: "stacks/images.json"
   PATCHED_USNS_FILENAME: "patched-usns.json"
-  SKIP_DEBUG: true
 
 jobs:
   preparation:
@@ -130,7 +129,7 @@ jobs:
           set -euo pipefail
           shopt -s inherit_errexit
 
-          install yj to parse TOML
+          #install yj to parse TOML
           curl -L $(curl -sL https://api.github.com/repos/sclevine/yj/releases/latest |  jq -r '.assets[] | select(.name=="yj-linux-amd64").browser_download_url') -o yj
           chmod +x yj
 
@@ -268,12 +267,11 @@ jobs:
         token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
 
     - name: Get current build image hash code of ${{ matrix.stacks.name }} stack with arch ${{ matrix.arch }}
-      if: ${{ matrix.stacks.create_build_image == true && env.SKIP_DEBUG == 'false' }}
+      if: ${{ matrix.stacks.create_build_image == true }}
       run: |
         skopeo inspect --format "{{.Digest}}" ${{ matrix.stacks.base_build_container_image }} > ./hash-code-current-build-image-${{ matrix.arch }}-${{ matrix.stacks.name }}
 
     - name: Get current run image hash code of ${{ matrix.stacks.name }} stack with arch ${{ matrix.arch }}
-      if: ${{ env.SKIP_DEBUG == 'false' }}
       run: |
         skopeo inspect --format "{{.Digest}}" ${{ matrix.stacks.base_run_container_image }} > ./hash-code-current-run-image-${{ matrix.arch }}-${{ matrix.stacks.name }}
 
@@ -313,7 +311,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [ preparation, poll_usns, poll_images  ]
     if: ${{ 
-      !cancelled() && 
+      !failure() && !cancelled() &&
       !(
         (needs.poll_images.outputs.images_need_update == null && 
         needs.poll_usns.outputs.usns == '[]') && 
@@ -356,7 +354,7 @@ jobs:
     # If there is no change on the usns, and there is no change on the image hash codes
     # and the event is schedule, then there is no need to run below workflow as nothing has changed
     if: ${{
-      !cancelled() && 
+      !failure() &&
       !(
         (needs.poll_images.outputs.images_need_update == null && 
         needs.poll_usns.outputs.usns == '[]') && 
@@ -420,8 +418,8 @@ jobs:
 
   diff:
     name: Diff Packages
-    needs: [ preparation, create_stack ]
-    if: ${{ !cancelled() }} 
+    needs: [ preparation, create_stack , poll_images]
+    if: ${{ !cancelled() && !failure() }}
     runs-on: ubuntu-22.04
     outputs:
       removed_with_force: ${{ steps.removed_with_force.outputs.packages_removed }}
@@ -458,7 +456,7 @@ jobs:
     - name: Check for Previous Releases
       id: check_previous
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         gh auth status
         # shellcheck disable=SC2046
@@ -653,7 +651,7 @@ jobs:
     name: Determine If Packages Changed
     needs: [ diff, preparation ]
     runs-on: ubuntu-22.04
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && !failure() }}
     strategy:
       matrix:
         stacks: ${{ fromJSON(needs.preparation.outputs.stacks) }}
@@ -720,7 +718,7 @@ jobs:
     name: Acceptance Test
     needs: [ create_stack, preparation ]
     runs-on: ubuntu-22.04
-    if: ${{ !cancelled() }}
+    if: ${{ !failure() && !cancelled() }}
     steps:
     - name: Setup Go
       uses: actions/setup-go@v5
