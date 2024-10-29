@@ -1054,9 +1054,23 @@ jobs:
             ]' <<<"${assets}")"
         done
 
+        printf "assets=%s\n" "${assets}" >> "$GITHUB_OUTPUT"
+
     - name: Generate Release Notes
       run: |
-        echo "hello" > release_notes
+        echo "## Images" > release_notes
+        echo "" >> release_notes
+        for stack in $(echo "$stacks" | jq -c '.[]'); do
+          stack_name=$(echo "$stack" | jq -r '.name')
+          run_image=$(echo "$stack" | jq -r '.run_image')
+          build_image=$(echo "$stack" | jq -r '.build_image')
+          create_build_image=$(echo "$stack" | jq -r '.create_build_image // false')
+
+          if [ ${create_build_image} == true ]; then
+            echo "Build: \`${{ needs.preparation.repo_owner }}/${build_image}-${stack_name}:${{ steps.tag.outputs.tag }}\`" >> release_notes
+          fi
+          echo "Run: \`${{ needs.preparation.repo_owner }}/${run_image}-${stack_name}:${{ steps.tag.outputs.tag }}\`" >> release_notes
+        done
 
     - name: Create Release
       uses: paketo-buildpacks/github-config/actions/release/create@main
@@ -1068,7 +1082,7 @@ jobs:
         name: v${{ steps.tag.outputs.tag }}
         body_filepath: release_notes
         draft: false
-        assets: ${{ steps.merge_release_assets.outputs.assets }}
+        assets: ${{ steps.assets.outputs.assets }}
 
   failure:
     name: Alert on Failure
