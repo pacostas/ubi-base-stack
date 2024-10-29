@@ -354,7 +354,7 @@ jobs:
     # If there is no change on the usns, and there is no change on the image hash codes
     # and the event is schedule, then there is no need to run below workflow as nothing has changed
     if: ${{
-      !failure() &&
+      !failure() && !cancelled() &&
       !(
         (needs.poll_images.outputs.images_need_update == null && 
         needs.poll_usns.outputs.usns == '[]') && 
