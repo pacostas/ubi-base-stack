@@ -741,12 +741,20 @@ jobs:
         pattern: current-build-image-*
         merge-multiple: true
 
+    ## TODO remove below debug step
+    - name: treeeee
+      run: tree .
+
     - name: Download Run image(s)
       uses: actions/download-artifact@v4
       with:
         path: image-files
         pattern: current-run-image-*
         merge-multiple: true
+
+    ## TODO remove below debug step
+    - name: treeeee
+      run: tree .
 
     - name: Create OCI artifacts destination directory
       run: |
