@@ -899,10 +899,11 @@ jobs:
     - name: Setup Release Assets
       id: assets
       run: |
+
         # Start with an empty array
         assets=$(jq -n -c '[]')
 
-        for stack in $(echo "$stacks" | jq -c '.[]'); do
+        for stack in $(echo "${{ fromJSON(needs.preparation.outputs.stacks) }}" | jq -c '.[]'); do
 
           stack_name=$(echo "$stack" | jq -r '.name')
           run_image=$(echo "$stack" | jq -r '.run_image')
@@ -941,7 +942,7 @@ jobs:
           fi
 
           release_notes_content_per_arch=""
-          for arch in $(echo "$archs" | jq -r '.[]'); do
+          for arch in $(echo "${{ fromJSON(needs.preparation.outputs.architectures) }}" | jq -r '.[]'); do
             arch_prefix="-${arch}-"
             if [[ $arch == "amd64" ]]; then
               arch_prefix="-"
