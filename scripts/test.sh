@@ -231,7 +231,7 @@ function stack_builds_exist() {
     if ! [[ -f "${STACK_DIR}/${stack_output_dir}/run.oci" ]]; then
       stack_output_builds_exist="false"
     fi
-    if ! [[ -f "${STACK_DIR}/${stack_output_dir}/build.oci" ]] && [[ "${is_build_image_necessary}" == true ]] then
+    if [[ ! -f "${STACK_DIR}/${stack_output_dir}/build.oci" && "${is_build_image_necessary}" == true ]]; then
       stack_output_builds_exist="false"
     fi
   done <<<"$STACK_IMAGES"
