@@ -899,10 +899,14 @@ jobs:
     - name: Setup Release Assets
       id: assets
       run: |
+
+        stacks=$(echo '${{ needs.preparation.outputs.stacks }}' | jq -c '.[]')
+        archs=$(echo '${{ needs.preparation.outputs.architectures }}' | jq -c '.[]')
+
         # Start with an empty array
         assets=$(jq -n -c '[]')
 
-        for stack in $(echo "$stacks" | jq -c '.[]'); do
+        for stack in $(echo "$stacks"); do
 
           stack_name=$(echo "$stack" | jq -r '.name')
           run_image=$(echo "$stack" | jq -r '.run_image')
