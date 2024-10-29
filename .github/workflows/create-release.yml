@@ -899,10 +899,14 @@ jobs:
     - name: Setup Release Assets
       id: assets
       run: |
+
+        stacks=$(echo '${{ needs.preparation.outputs.stacks }}' | jq -c '.[]')
+        archs=$(echo '${{ needs.preparation.outputs.architectures }}' | jq -c '.[]')
+
         # Start with an empty array
         assets=$(jq -n -c '[]')
 
-        for stack in $(echo "$stacks" | jq -c '.[]'); do
+        for stack in $(echo "$stacks"); do
 
           stack_name=$(echo "$stack" | jq -r '.name')
           run_image=$(echo "$stack" | jq -r '.run_image')
@@ -941,7 +945,7 @@ jobs:
           fi
 
           release_notes_content_per_arch=""
-          for arch in $(echo "$archs" | jq -r '.[]'); do
+          for arch in $(echo "$archs"); do
             arch_prefix="-${arch}-"
             if [[ $arch == "amd64" ]]; then
               arch_prefix="-"
@@ -957,6 +961,7 @@ jobs:
                 --arg tag "${{ steps.tag.outputs.tag }}" \
                 --arg repo "${{ steps.repo_name.outputs.github_repo_name }}" \
                 --arg arch "${arch}" \
+                --arg arch_prefix "${arch_prefix}" \
                 '. += [
                   {
                       "path": ($hash_code_filepath + "/" + "hash-code-current-run-image-"+ $arch + "-" + $stack_name ),
@@ -975,6 +980,7 @@ jobs:
                   --arg tag "${{ steps.tag.outputs.tag }}" \
                   --arg repo "${{ steps.repo_name.outputs.github_repo_name }}" \
                   --arg arch "${arch}" \
+                  --arg arch_prefix "${arch_prefix}"
                   '. += [
                     {
                       "path": ($hash_code_filepath + "/" + "hash-code-current-build-image-"+ $arch + "-" + $stack_name ),
@@ -1025,14 +1031,14 @@ jobs:
 
         # Merge relase notes per architecture and add them to the assets
         release_notes_dir="release-notes"
-        for arch in $(echo "$archs" | jq -r '.[]'); do
+        for arch in $(echo "$archs"); do
           arch_prefix="-${arch}-"
           if [[ $arch == "amd64" ]]; then
             arch_prefix="-"
           fi
 
           # Merge the release notes per architecture
-          for stack in $(echo "$stacks" | jq -c '.[]'); do
+          for stack in $(echo "$stacks"); do
             filename="${arch}-${stack_name}-release-notes.md"
             cat "${release_notes_dir}/${filename}" >>"${release_notes_dir}/${arch}-release-notes"
           done
