@@ -734,17 +734,19 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Download Build images
-      uses: actions/download-artifact@v3
+    - name: Download Build image(s)
+      uses: actions/download-artifact@v4
       with:
-        pattern: |
-           current-build-image-*
-    
-    - name: Download Run images
-      uses: actions/download-artifact@v3
+        path: image-files
+        pattern: current-build-image-*
+        merge-multiple: true
+
+    - name: Download Run image(s)
+      uses: actions/download-artifact@v4
       with:
-        pattern: |
-           current-run-image-*
+        path: image-files
+        pattern: current-run-image-*
+        merge-multiple: true
 
     - name: Create OCI artifacts destination directory
       run: |
@@ -753,9 +755,9 @@ jobs:
           output_dir=$(echo "$stack" | jq -r '.output_dir')
           create_build_image=$(echo "$stack" | jq -r '.create_build_image')
           mkdir -p $output_dir
-          mv "current-run-image-${name}/run.oci" "${output_dir}/run.oci"
+          mv "image-files/current-run-image-${name}/run.oci" "${output_dir}/run.oci"
           if [ $create_build_image == 'true' ]; then
-            mv "current-build-image-${name}/build.oci" "${output_dir}/build.oci"
+            mv "image-files/current-build-image-${name}/build.oci" "${output_dir}/build.oci"
           fi
         done
 
@@ -801,19 +803,20 @@ jobs:
       with:
         fetch-depth: 0  # gets full history
 
-    - name: Download Build images(s)
-      uses: actions/download-artifact@v3
+    - name: Download Build image(s)
+      uses: actions/download-artifact@v4
       with:
         path: image-files
-        pattern: current-build-image*
-        merge-multiple: true
+        pattern: current-build-image-*
 
-    - name: Download Run images(s)
-      uses: actions/download-artifact@v3
+    - name: Download Run image(s)
+      uses: actions/download-artifact@v4
       with:
         path: image-files
-        pattern: current-run-image*
-        merge-multiple: true
+        pattern: current-run-image-*
+
+    - name: Display Build and Run Images
+      run: ls image-files
 
     - name: Download Release Note File(s)
       uses: actions/download-artifact@v4
@@ -822,16 +825,32 @@ jobs:
         pattern: "*release-notes.md"
         merge-multiple: true
 
+    - name: Display Release Note Files
+      run: ls release-notes
+
     - name: Download Build Receipts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: receipt-files
         pattern: current-build-receipt-*
         merge-multiple: true
 
+    - name: Display Build Receipts
+      run: ls receipt-files
+
+    - name: Download Run Receipts
+      uses: actions/download-artifact@v4
+      with:
+        path: receipt-files
+        pattern: current-run-receipt-*
+        merge-multiple: true
+
+    - name: Display Run Receipts
+      run: ls receipt-files
+
     - name: Download hash code Files
       if: ${{ needs.preparation.outputs.polling_type == 'hash' }}
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: hash-code-files
         pattern: hash-code-*
@@ -843,7 +862,7 @@ jobs:
 
     - name: Download USN Files
       if: ${{ needs.preparation.outputs.polling_type == 'usn' }}
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: usn-files
         pattern: "*${{ env.PATCHED_USNS_FILENAME }}"
@@ -853,15 +872,6 @@ jobs:
       if: ${{ needs.preparation.outputs.polling_type == 'usn' }}
       run: ls usn-files
 
-    - name: Download Release Note File(s)
-      uses: actions/download-artifact@v3
-      with:
-        path: release-notes
-        pattern: "*release-notes.md"
-        merge-multiple: true
-
-    - name: Display Release Note Files
-      run: ls release-notes
     #TODO remove below debug code
     - name: tree
       run: tree .
@@ -1006,9 +1016,9 @@ jobs:
       with:
         repo: ${{ github.repository }}
         token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
-        tag_name: v${{ needs.release.outputs.tag }}
+        tag_name: v${{ steps.tag.outputs.tag }}
         target_commitish: ${{ github.sha }}
-        name: v${{ needs.release.outputs.tag }}
+        name: v${{ steps.tag.outputs.tag }}
         body_filepath: release_notes
         draft: false
         assets: ${{ steps.merge_release_assets.outputs.assets }}
