@@ -906,8 +906,7 @@ jobs:
         # Start with an empty array
         assets=$(jq -n -c '[]')
 
-        for stack in $(echo "$stacks"); do
-
+        for stack in $stacks; do
           stack_name=$(echo "$stack" | jq -r '.name')
           run_image=$(echo "$stack" | jq -r '.run_image')
           create_build_image=$(echo "$stack" | jq -r '.create_build_image // false')
@@ -945,7 +944,7 @@ jobs:
           fi
 
           release_notes_content_per_arch=""
-          for arch in $(echo "$archs"); do
+          for arch in $archs; do
             arch_prefix="-${arch}-"
             if [[ $arch == "amd64" ]]; then
               arch_prefix="-"
@@ -1031,14 +1030,14 @@ jobs:
 
         # Merge relase notes per architecture and add them to the assets
         release_notes_dir="release-notes"
-        for arch in $(echo "$archs"); do
+        for arch in $archs; do
           arch_prefix="-${arch}-"
           if [[ $arch == "amd64" ]]; then
             arch_prefix="-"
           fi
 
           # Merge the release notes per architecture
-          for stack in $(echo "$stacks"); do
+          for stack in $stacks; do
             filename="${arch}-${stack_name}-release-notes.md"
             cat "${release_notes_dir}/${filename}" >>"${release_notes_dir}/${arch}-release-notes"
           done
@@ -1066,16 +1065,17 @@ jobs:
       run: |
         echo "## Images" > release_notes
         echo "" >> release_notes
-        for stack in $(echo "$stacks" | jq -c '.[]'); do
+        stacks=$(echo '${{ needs.preparation.outputs.stacks }}' | jq -c -r '.[]')
+        for stack in $stacks; do
           stack_name=$(echo "$stack" | jq -r '.name')
           run_image=$(echo "$stack" | jq -r '.run_image')
           build_image=$(echo "$stack" | jq -r '.build_image')
           create_build_image=$(echo "$stack" | jq -r '.create_build_image // false')
 
           if [ ${create_build_image} == true ]; then
-            echo "Build: \`${{ needs.preparation.repo_owner }}/${build_image}-${stack_name}:${{ steps.tag.outputs.tag }}\`" >> release_notes
+            echo "Build: \`${{ needs.preparation.outputs.repo_owner }}/${build_image}-${stack_name}:${{ steps.tag.outputs.tag }}\`" >> release_notes
           fi
-          echo "Run: \`${{ needs.preparation.repo_owner }}/${run_image}-${stack_name}:${{ steps.tag.outputs.tag }}\`" >> release_notes
+          echo "Run: \`${{ needs.preparation.outputs.repo_owner }}/${run_image}-${stack_name}:${{ steps.tag.outputs.tag }}\`" >> release_notes
         done
 
     - name: Create Release
