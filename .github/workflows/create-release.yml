@@ -480,17 +480,23 @@ jobs:
     - name: Write Empty Previous Receipts
       if: ${{ steps.check_previous.outputs.exists == 'false' }}
       run: |
-        echo '{"components":[]}' > "${{ github.workspace }}/${{ steps.previous_receipt.outputs.build_filename}}"
-        echo '{"components":[]}' > "${{ github.workspace }}/${{ steps.previous_receipt.outputs.build_filename}}"
+        if [ ${{ matrix.stacks.create_build_image }} == true ]; then
+          echo '{"components":[]}' > "/github/workspace/${{ steps.previous_receipt.outputs.build_filename}}"
+        fi
+        echo '{"components":[]}' > "/github/workspace/${{ steps.previous_receipt.outputs.run_filename}}"
 
     - name: Previous receipt download filename pattern
       id: previous_receipt_download_pattern
       run: |
         if [ "${{ matrix.arch }}" = "amd64" ]; then
-          echo "build_filename=${{ matrix.stacks.build_receipt_filename }}" >> "$GITHUB_OUTPUT"
+          if [ ${{ matrix.stacks.create_build_image }} == true ]; then
+            echo "build_filename=${{ matrix.stacks.build_receipt_filename }}" >> "$GITHUB_OUTPUT"
+          fi
           echo "run_filename=${{ matrix.stacks.run_receipt_filename }}" >> "$GITHUB_OUTPUT"
         else
-          echo "build_filename=${{ matrix.arch }}-${{ matrix.stacks.build_receipt_filename }}" >> "$GITHUB_OUTPUT"
+          if [ ${{ matrix.stacks.create_build_image }} == true ]; then
+            echo "build_filename=${{ matrix.arch }}-${{ matrix.stacks.build_receipt_filename }}" >> "$GITHUB_OUTPUT"
+          fi
           echo "run_filename=${{ matrix.arch }}-${{ matrix.stacks.run_receipt_filename }}" >> "$GITHUB_OUTPUT"
         fi
 
@@ -501,7 +507,7 @@ jobs:
         asset_pattern: "${{ steps.previous_receipt_download_pattern.outputs.build_filename }}"
         search_depth: 1
         repo: ${{ github.repository }}
-        output_path: "${{ github.workspace }}/previous-${{ steps.previous_receipt_download_pattern.outputs.build_filename }}"
+        output_path: "/github/workspace/previous-${{ steps.previous_receipt_download_pattern.outputs.build_filename }}"
         token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
 
     - name: Find and Download Previous Run Receipt
@@ -511,7 +517,7 @@ jobs:
         asset_pattern: "${{ steps.previous_receipt_download_pattern.outputs.run_filename }}"
         search_depth: 1
         repo: ${{ github.repository }}
-        output_path: "${{ github.workspace }}/previous-${{ steps.previous_receipt_download_pattern.outputs.run_filename }}"
+        output_path: "/github/workspace/previous-${{ steps.previous_receipt_download_pattern.outputs.run_filename }}"
         token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
 
     - name: Compare Build Packages
@@ -519,15 +525,15 @@ jobs:
       if: ${{ matrix.stacks.create_build_image == true }}
       uses: paketo-buildpacks/github-config/actions/stack/diff-package-receipts@main
       with:
-        previous: "${{ github.workspace }}/${{ steps.previous_receipt.outputs.build_filename}}"
-        current: "${{ github.workspace }}/${{ steps.current_receipt.outputs.build_filename}}"
+        previous: "/github/workspace/previous-${{ steps.previous_receipt_download_pattern.outputs.build_filename}}"
+        current: "/github/workspace/${{ steps.current_receipt.outputs.build_filename}}"
 
     - name: Compare Run Packages
       id: run_diff
       uses: paketo-buildpacks/github-config/actions/stack/diff-package-receipts@main
       with:
-        previous: "${{ github.workspace }}/${{ steps.previous_receipt.outputs.run_filename}}"
-        current: "${{ github.workspace }}/${{ steps.current_receipt.outputs.run_filename}}"
+        previous: "/github/workspace/previous-${{ steps.previous_receipt_download_pattern.outputs.run_filename }}"
+        current: "/github/workspace/${{ steps.current_receipt.outputs.run_filename}}"
 
     - name: Fail If Packages Removed
       id: removed_with_force
