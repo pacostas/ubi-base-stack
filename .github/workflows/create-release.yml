@@ -227,7 +227,7 @@ jobs:
   #       USNS: ${{ steps.usns.outputs.usns }}
 
   #   - name: Upload USNs file
-  #     uses: actions/upload-artifact@v3
+  #     uses: actions/upload-artifact@v4
   #     with:
   #       name: "${{ matrix.arch }}-${{ env.PATCHED_USNS_FILENAME }}"
   #       path: "${{ matrix.arch }}-${{ env.PATCHED_USNS_FILENAME }}"
@@ -276,7 +276,7 @@ jobs:
         skopeo inspect --format "{{.Digest}}" ${{ matrix.stacks.base_run_container_image }} > ./hash-code-current-run-image-${{ matrix.arch }}-${{ matrix.stacks.name }}
 
     - name: Upload run image hash code
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: hash-code-current-run-image-${{ matrix.arch }}-${{ matrix.stacks.name }}
         path: hash-code-current-run-image-${{ matrix.arch }}-${{ matrix.stacks.name }}
@@ -284,7 +284,7 @@ jobs:
 
     - name: Upload build image hash code
       if: ${{ matrix.stacks.create_build_image == true }}
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: hash-code-current-build-image-${{ matrix.arch }}-${{ matrix.stacks.name }}
         path: hash-code-current-build-image-${{ matrix.arch }}-${{ matrix.stacks.name }}
@@ -403,14 +403,14 @@ jobs:
 
       - name: Upload Build receipt
         if: ${{ matrix.stacks.create_build_image == true }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: current-build-receipt-${{ matrix.stacks.name }}
           path: "*current-build-receipt-${{ matrix.stacks.name }}"
           if-no-files-found: error 
 
       - name: Upload Run receipt
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: current-run-receipt-${{ matrix.stacks.name }}
           path: "*current-run-receipt-${{ matrix.stacks.name }}"
@@ -441,12 +441,12 @@ jobs:
 
     - name: Download Build Receipt(s)
       if: ${{ matrix.stacks.create_build_image == true }}
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: ${{ steps.current_receipt.outputs.build_filename }}
 
     - name: Download Run Receipt(s)
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: ${{ steps.current_receipt.outputs.run_filename }}
 
@@ -579,7 +579,7 @@ jobs:
         echo '${{ steps.run_diff.outputs.removed }}' > run_removed_with_force
 
     - name: Upload diff-${{ matrix.arch }}-${{ matrix.stacks.name }}
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: diff-${{ matrix.arch }}-${{ matrix.stacks.name }}
         path: diff-${{ matrix.arch }}-${{ matrix.stacks.name }}
@@ -666,7 +666,7 @@ jobs:
       packages_changed: ${{ steps.compare.outputs.packages_changed }}
     steps:
     - name: Download diff-${{ matrix.arch }}-${{ matrix.stacks.name }}
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
        name: diff-${{ matrix.arch }}-${{ matrix.stacks.name }}
 
