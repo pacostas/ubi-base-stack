@@ -254,11 +254,11 @@ jobs:
       id: hashcode_pattern
       run: |
         if [ "${{ matrix.arch }}" = "amd64" ]; then
-          echo "build=${{ needs.preparation.outputs.github_repo_name }}-!(*arm64*|*s390x*)-build.oci.sha256" >> "$GITHUB_OUTPUT"
-          echo "run=${{ needs.preparation.outputs.github_repo_name }}-!(*arm64*|*s390x*)-run.oci.sha256" >> "$GITHUB_OUTPUT"
+          echo "build=${{ needs.preparation.outputs.github_repo_name }}-\\d+.\\d+(.\\d+)?-${{ matrix.stacks.build_image }}.oci.sha256" >> "$GITHUB_OUTPUT"
+          echo "run=${{ needs.preparation.outputs.github_repo_name }}-\\d+.\\d+(.\\d+)?-${{ matrix.stacks.run_image }}.oci.sha256" >> "$GITHUB_OUTPUT"
         else
-          echo "build=*-${{ matrix.arch }}-build.oci.sha256" >> "$GITHUB_OUTPUT"
-          echo "run=*-${{ matrix.arch }}-run.oci.sha256" >> "$GITHUB_OUTPUT"
+          echo "build=-${{ matrix.arch }}-${{ matrix.stacks.build_image }}.oci.sha256" >> "$GITHUB_OUTPUT"
+          echo "run=-${{ matrix.arch }}-${{ matrix.stacks.run_image }}.oci.sha256" >> "$GITHUB_OUTPUT"
         fi        
 
     - name: Find and Download Previous build image hash code of stack ${{ matrix.stacks.build_image }}
@@ -485,13 +485,8 @@ jobs:
     - name: Previous receipt filenames
       id: previous_receipt
       run: |
-        if [ "${{ matrix.arch }}" = "amd64" ]; then
-          echo "build_filename=previous-build-receipt-${{ matrix.stacks.name }}" >>  "$GITHUB_OUTPUT"
-          echo "run_filename=previous-run-receipt-${{ matrix.stacks.name }}" >>  "$GITHUB_OUTPUT"
-        else
-          echo "build_filename=${{ matrix.arch }}-previous-build-receipt-${{ matrix.stacks.name }}" >>  "$GITHUB_OUTPUT"
-          echo "run_filename=${{ matrix.arch }}-previous-run-receipt-${{ matrix.stacks.name }}" >>  "$GITHUB_OUTPUT"
-        fi
+        echo "build_filename=${{ matrix.arch }}-previous-build-receipt-${{ matrix.stacks.name }}" >>  "$GITHUB_OUTPUT"
+        echo "run_filename=${{ matrix.arch }}-previous-run-receipt-${{ matrix.stacks.name }}" >>  "$GITHUB_OUTPUT"
 
     - name: Write Empty Previous Receipts
       if: ${{ steps.check_previous.outputs.exists == 'false' }}
@@ -506,9 +501,9 @@ jobs:
       run: |
         if [ "${{ matrix.arch }}" = "amd64" ]; then
           if [ ${{ matrix.stacks.create_build_image }} == true ]; then
-            echo "build_filename=${{ needs.preparation.outputs.github_repo_name }}-!(*arm64*|*s390x*)-${{ matrix.stacks.build_receipt_filename }}" >> "$GITHUB_OUTPUT"
+            echo "build_filename=${{ needs.preparation.outputs.github_repo_name }}-\\d+\\.\\d+(\\.\\d+)?-${{ matrix.stacks.build_receipt_filename }}" >> "$GITHUB_OUTPUT"
           fi
-          echo "run_filename=${{ needs.preparation.outputs.github_repo_name }}-!(*arm64*|*s390x*)-${{ matrix.stacks.run_receipt_filename }}" >> "$GITHUB_OUTPUT"
+          echo "run_filename=${{ needs.preparation.outputs.github_repo_name }}-\\d+\\.\\d+(\\.\\d+)?-${{ matrix.stacks.run_receipt_filename }}" >> "$GITHUB_OUTPUT"
         else
           if [ ${{ matrix.stacks.create_build_image }} == true ]; then
             echo "build_filename=${{ matrix.arch }}-${{ matrix.stacks.build_receipt_filename }}" >> "$GITHUB_OUTPUT"
