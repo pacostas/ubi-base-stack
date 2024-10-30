@@ -31,6 +31,7 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       stacks: ${{ steps.get-stacks.outputs.stacks }}
+      support_usns: ${{ steps.polling-os-type.outputs.support_usns }}
       architectures: ${{ steps.lookup.outputs.platforms }}
       polling_type: ${{ steps.polling-os-type.outputs.polling_type }}
       github_repo_name: ${{ steps.repo.outputs.github_repo_name }}
@@ -631,6 +632,7 @@ jobs:
         run_packages_added: ${{ steps.run_diff.outputs.added }}
         run_packages_modified: ${{ steps.run_diff.outputs.modified }}
         run_packages_removed_with_force: ${{ steps.run_diff.outputs.removed }}
+        supports_usns: ${{ needs.preparation.outputs.support_usns }}
 
     - name: Release Notes File
       id: release-notes-file
@@ -1038,6 +1040,7 @@ jobs:
 
           # Merge the release notes per architecture
           for stack in $stacks; do
+            stack_name=$(echo "$stack" | jq -r '.name')
             filename="${arch}-${stack_name}-release-notes.md"
             cat "${release_notes_dir}/${filename}" >>"${release_notes_dir}/${arch}-release-notes"
           done
@@ -1045,7 +1048,6 @@ jobs:
           # add release notes of the arch on the assets
           assets="$(jq --compact-output \
             --arg release_notes_dir "${release_notes_dir}" \
-            --arg stack_name "${stack_name}" \
             --arg tag "${{ steps.tag.outputs.tag }}" \
             --arg repo "${{ needs.preparation.outputs.github_repo_name }}" \
             --arg arch "${arch}" \
@@ -1059,12 +1061,22 @@ jobs:
             ]' <<<"${assets}")"
         done
 
-        printf "assets=%s\n" "${assets}" >> "$GITHUB_OUTPUT"
+        # If there is only one architecture
+        # add this as a relase notes description
+        archs_length=$(echo '${{ needs.preparation.outputs.architectures }}' | jq 'length')
+        if [ $archs_length -eq 1 ]; then
+          arch=$(echo '${{ needs.preparation.outputs.architectures }}' | jq -r '.[0]')
+          cat "${release_notes_dir}/${arch}-release-notes" > release_notes.md
+        fi
 
-    - name: Generate Release Notes
+        echo "assets=${assets}" >> "$GITHUB_OUTPUT"
+        echo "archs_length=${archs_length}" >> "$GITHUB_OUTPUT"
+
+    - name: Generate Release Notes Description
+      if: ${{ steps.assets.outputs.archs_length > 1 }}
       run: |
-        echo "## Images" > release_notes
-        echo "" >> release_notes
+        echo "## Images" > release_notes.md
+        echo "" >> release_notes.md
         stacks=$(echo '${{ needs.preparation.outputs.stacks }}' | jq -c -r '.[]')
         for stack in $stacks; do
           stack_name=$(echo "$stack" | jq -r '.name')
@@ -1073,9 +1085,9 @@ jobs:
           create_build_image=$(echo "$stack" | jq -r '.create_build_image // false')
 
           if [ ${create_build_image} == true ]; then
-            echo "Build: \`${{ needs.preparation.outputs.repo_owner }}/${build_image}-${stack_name}:${{ steps.tag.outputs.tag }}\`" >> release_notes
+            echo "Build: \`${{ needs.preparation.outputs.repo_owner }}/${build_image}-${stack_name}:${{ steps.tag.outputs.tag }}\`" >> release_notes.md
           fi
-          echo "Run: \`${{ needs.preparation.outputs.repo_owner }}/${run_image}-${stack_name}:${{ steps.tag.outputs.tag }}\`" >> release_notes
+          echo "Run: \`${{ needs.preparation.outputs.repo_owner }}/${run_image}-${stack_name}:${{ steps.tag.outputs.tag }}\`" >> release_notes.md
         done
 
     - name: Create Release
@@ -1086,7 +1098,7 @@ jobs:
         tag_name: v${{ steps.tag.outputs.tag }}
         target_commitish: ${{ github.sha }}
         name: v${{ steps.tag.outputs.tag }}
-        body_filepath: release_notes
+        body_filepath: release_notes.md
         draft: false
         assets: ${{ steps.assets.outputs.assets }}
 
