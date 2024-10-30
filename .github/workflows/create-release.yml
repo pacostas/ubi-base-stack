@@ -250,24 +250,37 @@ jobs:
     outputs:
       images_need_update: ${{ steps.compare_previous_and_current_sha256_hash_codes.outputs.images_need_update }}
     steps:
+    - name: Generate hash code asset patterns
+      id: hashcode_pattern
+      run: |
+        if [ "${{ matrix.arch }}" = "amd64" ]; then
+          echo "build=${{ needs.preparation.outputs.github_repo_name }}-!(*arm64*|*s390x*)-build.oci.sha256" >> "$GITHUB_OUTPUT"
+          echo "run=${{ needs.preparation.outputs.github_repo_name }}-!(*arm64*|*s390x*)-run.oci.sha256" >> "$GITHUB_OUTPUT"
+        else
+          echo "build=*-${{ matrix.arch }}-build.oci.sha256" >> "$GITHUB_OUTPUT"
+          echo "run=*-${{ matrix.arch }}-run.oci.sha256" >> "$GITHUB_OUTPUT"
+        fi        
+
     - name: Find and Download Previous build image hash code of stack ${{ matrix.stacks.build_image }}
       if: ${{ matrix.stacks.create_build_image == true }}
       uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
       with:
-        asset_pattern: "${{ matrix.stacks.build_image }}.oci.sha256"
+        asset_pattern: "${{ steps.hashcode_pattern.outputs.build }}"
         search_depth: 1
         repo: ${{ github.repository }}
         output_path: "./previous_${{ matrix.arch }}-${{ matrix.stacks.build_image }}.oci.sha256"
         token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
+        strict: true
 
     - name: Find and Download Previous run image hash code of stack ${{ matrix.stacks.run_image }}
       uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
       with:
-        asset_pattern: "${{ matrix.stacks.run_image }}.oci.sha256"
+        asset_pattern: "${{ steps.hashcode_pattern.outputs.run }}"
         search_depth: 1
         repo: ${{ github.repository }}
         output_path: "./previous_${{ matrix.arch }}-${{ matrix.stacks.run_image }}.oci.sha256"
         token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
+        strict: true
 
     - name: Get current build image hash code of ${{ matrix.stacks.name }} stack with arch ${{ matrix.arch }}
       if: ${{ matrix.stacks.create_build_image == true }}
@@ -493,9 +506,9 @@ jobs:
       run: |
         if [ "${{ matrix.arch }}" = "amd64" ]; then
           if [ ${{ matrix.stacks.create_build_image }} == true ]; then
-            echo "build_filename=${{ matrix.stacks.build_receipt_filename }}" >> "$GITHUB_OUTPUT"
+            echo "build_filename=${{ needs.preparation.outputs.github_repo_name }}-!(*arm64*|*s390x*)-${{ matrix.stacks.build_receipt_filename }}" >> "$GITHUB_OUTPUT"
           fi
-          echo "run_filename=${{ matrix.stacks.run_receipt_filename }}" >> "$GITHUB_OUTPUT"
+          echo "run_filename=${{ needs.preparation.outputs.github_repo_name }}-!(*arm64*|*s390x*)-${{ matrix.stacks.run_receipt_filename }}" >> "$GITHUB_OUTPUT"
         else
           if [ ${{ matrix.stacks.create_build_image }} == true ]; then
             echo "build_filename=${{ matrix.arch }}-${{ matrix.stacks.build_receipt_filename }}" >> "$GITHUB_OUTPUT"
