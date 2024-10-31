@@ -407,18 +407,47 @@ jobs:
       run: |
         echo "stack files have changed"
 
+  usns_or_sha_changed:
+    name: USNs or SHAs have changed
+    runs-on: ubuntu-22.04
+    outputs: 
+      changed: ${{ steps.usns_or_sha_changed.outputs.changed }}
+    needs: [ preparation, poll_usns, poll_images ]
+    if: ${{ !failure() && !cancelled() }}
+    steps:
+      - name: Check USNs or SHAs have changed
+        id: usns_or_sha_changed
+        run: |
+          if [ '${{ needs.poll_images.result }}' != 'skipped' ]; then
+            echo "Poll images job did not skip"
+            if [ '${{ needs.poll_images.outputs.images_need_update }}' = "true" ]; then
+              echo "SHAs have changed"
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "SHAs have not changed"
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
+
+          if [ '${{ needs.poll_usns.result }}' != 'skipped' ]; then
+            echo "Poll USNs did not skip"
+            if [ '${{ needs.poll_usns.outputs.usns }}' = "true" ]; then
+              echo "USNs have changed"
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "USNs have not changed"
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+            fi
+            exit 0
+          fi
+
   create_stack:
     name: Create Stack
-    needs: [ preparation, poll_usns, poll_images ]
+    needs: [ preparation, usns_or_sha_changed ]
     # If there is no change on the usns, and there is no change on the image hash codes
     # and the event is schedule, then there is no need to run below workflow as nothing has changed
-    if: ${{
-      !failure() && !cancelled() &&
-      !(
-        (needs.poll_images.outputs.images_need_update == null && 
-        needs.poll_usns.outputs.usns == null ) && 
-        github.event_name == 'schedule'
-      ) }}
+    if: ${{ !failure() && !cancelled() && !( needs.usns_or_sha_changed.outputs.changed == 'false' && github.event_name == 'schedule') }}
     runs-on: ubuntu-22.04
     strategy:
       matrix:
