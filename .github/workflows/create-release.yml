@@ -552,7 +552,7 @@ jobs:
       if: ${{ matrix.stacks.create_build_image == true && steps.check_previous.outputs.exists == 'true' }}
       uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
       with:
-        asset_pattern: "${{ steps.previous_receipt_download_pattern.outputs.build }}"
+        asset_pattern: "${{ steps.previous_receipt_download_pattern.outputs.build_filename }}"
         search_depth: 1
         repo: ${{ github.repository }}
         output_path: "/github/workspace/${{ matrix.arch }}-previous-build-receipt-${{ matrix.stacks.name }}"
@@ -1091,43 +1091,45 @@ jobs:
           done
         done
 
-
-        for stack in $stacks; do
-          stack_name_prefix="${stack}"
-          if [[ $stack_name == "default" ]]; then
-            stack_name_prefix=""
-          fi
-
-          for arch in $archs; do
-            arch_prefix="${arch}"
-            if [[ $arch == "amd64" ]]; then
-              arch_prefix=""
+        ## Add the usn files to the assets
+        if [ "${{ needs.preparation.outputs.polling_type }}" = "usn" ]; then
+          for stack in $stacks; do
+            stack_name_prefix="${stack}"
+            if [[ $stack_name == "default" ]]; then
+              stack_name_prefix=""
             fi
 
-            usn_asset_name=$(
-              echo '[
-                "${{ needs.preparation.outputs.github_repo_name }}",
-                "${{ steps.tag.outputs.tag }}",
-                "'"$stack_name_prefix"'",
-                "'"$arch_prefix"'",
-                "${{ env.PATCHED_USNS_FILENAME }}"
-              ]' | jq -r 'map(select(length > 0)) | join("-")'
-            )
-            
-            assets="$(jq --compact-output \
-              --arg usns_filepath "usn-files" \
-              --arg stack_name "${stack_name}" \
-              --arg arch "${arch}" \
-              --arg usn_asset_name "${usn_asset_name}"
-              '. += [
-              {
-                "path": ($usns_filepath + "/" + $arch + "-" + $stack_name + "-" + $patched_usns_suffix),
-                "name": $usn_asset_name,
-                "content_type": "text/plain"
-              }
-            ]' <<< "${assets}")"
+            for arch in $archs; do
+              arch_prefix="${arch}"
+              if [[ $arch == "amd64" ]]; then
+                arch_prefix=""
+              fi
+
+              usn_asset_name=$(
+                echo '[
+                  "${{ needs.preparation.outputs.github_repo_name }}",
+                  "${{ steps.tag.outputs.tag }}",
+                  "'"$stack_name_prefix"'",
+                  "'"$arch_prefix"'",
+                  "${{ env.PATCHED_USNS_FILENAME }}"
+                ]' | jq -r 'map(select(length > 0)) | join("-")'
+              )
+
+              assets="$(jq --compact-output \
+                --arg usns_filepath "usn-files" \
+                --arg stack_name "${stack_name}" \
+                --arg arch "${arch}" \
+                --arg usn_asset_name "${usn_asset_name}"
+                '. += [
+                {
+                  "path": ($usns_filepath + "/" + $arch + "-" + $stack_name + "-" + $patched_usns_suffix),
+                  "name": $usn_asset_name,
+                  "content_type": "text/plain"
+                }
+              ]' <<< "${assets}")"
+            done
           done
-        done
+        fi
 
         # Merge relase notes per architecture and add them to the assets
         release_notes_dir="release-notes"
