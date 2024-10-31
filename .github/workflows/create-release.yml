@@ -156,84 +156,127 @@ jobs:
         stacks: ${{ fromJSON(needs.preparation.outputs.stacks) }}
         arch: ${{ fromJSON(needs.preparation.outputs.architectures) }}
     outputs:
-      usns: ${{ steps.usns.outputs.usns }}
+      usns: ${{ steps.new_usns.outputs.usns }}
     steps:
+    - name: Generate receipt asset patterns
+      id: receipt_pattern
+      run: |
+        if [ "${{ matrix.arch }}" = "amd64" ]; then
+          if [ ${{ matrix.stacks.create_build_image }} == true ]; then
+            echo "build=${{ needs.preparation.outputs.github_repo_name }}-\\d+\\.\\d+(\\.\\d+)?-${{ matrix.stacks.build_receipt_filename }}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "run=${{ needs.preparation.outputs.github_repo_name }}-\\d+\\.\\d+(\\.\\d+)?-${{ matrix.stacks.run_receipt_filename }}" >> "$GITHUB_OUTPUT"
+        else
+          if [ ${{ matrix.stacks.create_build_image }} == true ]; then
+            echo "build=${{ matrix.arch }}-${{ matrix.stacks.build_receipt_filename }}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "run=${{ matrix.arch }}-${{ matrix.stacks.run_receipt_filename }}" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Find and Download Previous Build Receipt
       id: previous_build
       uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
       with:
-        asset_pattern: "${{ matrix.arch }}-${{ matrix.build_image }}-receipt.cyclonedx.json"
+        asset_pattern: "${{ steps.receipt_pattern.outputs.build }}"
         search_depth: 1
         repo: ${{ github.repository }}
-        output_path: "/github/workspace/${{ matrix.arch }}-${{ matrix.build_image }}-receipt.cyclonedx.json"
+        output_path: "/github/workspace/${{ matrix.arch }}-previous-build-receipt-${{ matrix.stacks.name }}"
         token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
 
-  #   - name: Find and Download Previous Run Receipt
-  #     id: previous_run
-  #     uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
-  #     with:
-  #       asset_pattern: "${{ matrix.arch }}-${{ matrix.run_image }}-receipt.cyclonedx.json"
-  #       search_depth: 1
-  #       repo: ${{ github.repository }}
-  #       output_path: "/github/workspace/${{ matrix.arch }}-${{ matrix.run_image }}-receipt.cyclonedx.json"
-  #       token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
+    - name: Find and Download Previous Run Receipt
+      id: previous_run
+      uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
+      with:
+        asset_pattern: "${{ steps.receipt_pattern.outputs.run }}"
+        search_depth: 1
+        repo: ${{ github.repository }}
+        output_path: "/github/workspace/${{ matrix.arch }}-previous-run-receipt-${{ matrix.stacks.name }}"
+        token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
 
-  #   - name: Get Package List
-  #     id: packages
-  #     if: ${{ steps.previous_build.outputs.output_path != '' && steps.previous_run.outputs.output_path != '' }}
-  #     uses: paketo-buildpacks/github-config/actions/stack/generate-package-list@main
-  #     with:
-  #       build_receipt: "${{ github.workspace }}/${{ matrix.arch }}-${{ matrix.build_image }}-receipt.cyclonedx.json"
-  #       run_receipt: "${{ github.workspace }}/${{ matrix.arch }}-${{ matrix.run_image }}-receipt.cyclonedx.json"
+    - name: Get Package List
+      id: packages
+      if: ${{ steps.previous_build.outputs.output_path != '' && steps.previous_run.outputs.output_path != '' }}
+      uses: paketo-buildpacks/github-config/actions/stack/generate-package-list@main
+      with:
+        build_receipt: "/github/workspace/${{ matrix.arch }}-previous-build-receipt-${{ matrix.stacks.name }}"
+        run_receipt: /github/workspace/${{ matrix.arch }}-previous-run-receipt-${{ matrix.stacks.name }}"
 
-  #   - name: Find and Download Previous Patched USNs
-  #     id: download_patched
-  #     uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
-  #     with:
-  #       asset_pattern: "${{ matrix.arch }}-${{ env.PATCHED_USNS_FILENAME }}"
-  #       search_depth: "-1"   # Search all releases
-  #       repo: ${{ github.repository }}
-  #       output_path: "/github/workspace/${{ matrix.arch }}-${{ env.PATCHED_USNS_FILENAME }}-previous"
-  #       token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
+    - name: Generate USNs download asset pattern
+      id: usn_download_pattern
+      run: |
+        arch_prefix=""
+        if [ "${{ matrix.arch }}" = "amd64" ]; then
+          arch_prefix=""
+        else
+          arch_prefix="${{ matrix.arch }}"
+        fi
 
-  #   - name: Output Patched USNs as JSON String
-  #     id: patched
-  #     if: ${{ steps.download_patched.outputs.output_path != '' }}
-  #     run: |
-  #       patched=$(jq --compact-output . < "${GITHUB_WORKSPACE}/${{ matrix.arch }}-${{ env.PATCHED_USNS_FILENAME }}-previous")
-  #       printf "patched=%s\n" "${patched}" >> "$GITHUB_OUTPUT"
+        stack_name_prefix=""
+        if [ "${{ matrix.stacks.name }}" = "default" ]; then
+          stack_name_prefix=""
+        else
+          stack_name_prefix="${{ matrix.stacks.name }}"
+        fi
 
-  #   - name: Get Stack Distribution Name
-  #     id: distro
-  #     run: |
-  #       # Extract distro from repo name:
-  #       # paketo-buildpacks/jammy-tiny-stack --> jammy
-  #       distro="$(echo "${{ github.repository }}" | sed 's/^.*\///' | sed 's/\-.*$//')"
-  #       echo "Ubuntu distribution: ${distro}"
-  #       printf "distro=%s\n" "${distro}" >> "$GITHUB_OUTPUT"
+        pattern=$(echo '["\\\\d+.\\\\d+(.\\\\d+)?","'"$stack_name_prefix"'", "'"$arch_prefix"'", "${{ env.PATCHED_USNS_FILENAME }}"]' |  jq -r 'map(select(length > 0)) | join("-")')
 
-  #   - name: Get New USNs
-  #     id: usns
-  #     uses: paketo-buildpacks/github-config/actions/stack/get-usns@main
-  #     with:
-  #       distribution: ${{ steps.distro.outputs.distro }}
-  #       packages: ${{ steps.packages.outputs.packages }}
-  #       last_usns: ${{ steps.patched.outputs.patched }}
+        echo "pattern=$pattern" >> "$GITHUB_OUTPUT"
 
-  #   - name: Write USNs File
-  #     id: write_usns
-  #     run: |
-  #       jq . <<< "${USNS}" > "${USNS_PATH}"
-  #       echo "usns=${USNS_PATH}" >> "$GITHUB_OUTPUT"
-  #     env:
-  #       USNS_PATH: "${{ matrix.arch }}-${{ env.PATCHED_USNS_FILENAME }}"
-  #       USNS: ${{ steps.usns.outputs.usns }}
+    - name: Find and Download Previous Patched USNs
+      id: download_patched
+      uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
+      with:
+        asset_pattern: "${{ steps.usn_download_pattern.outputs.pattern }}"
+        search_depth: "-1"   # Search all releases
+        repo: ${{ github.repository }}
+        output_path: "/github/workspace/${{ matrix.arch }}-${{ matrix.stacks.name }}-${{ env.PATCHED_USNS_FILENAME }}-previous"
+        token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
 
-  #   - name: Upload USNs file
-  #     uses: actions/upload-artifact@v4
-  #     with:
-  #       name: "${{ matrix.arch }}-${{ env.PATCHED_USNS_FILENAME }}"
-  #       path: "${{ matrix.arch }}-${{ env.PATCHED_USNS_FILENAME }}"
+    - name: Output Patched USNs as JSON String
+      id: patched
+      if: ${{ steps.download_patched.outputs.output_path != '' }}
+      run: |
+        patched=$(jq --compact-output . < "${GITHUB_WORKSPACE}/${{ matrix.arch }}-${{ matrix.stacks.name }}-${{ env.PATCHED_USNS_FILENAME }}-previous")
+        printf "patched=%s\n" "${patched}" >> "$GITHUB_OUTPUT"
+
+    - name: Get Stack Distribution Name
+      id: distro
+      run: |
+        # Extract distro from repo name:
+        # paketo-buildpacks/jammy-tiny-stack --> jammy
+        distro="$(echo "${{ github.repository }}" | sed 's/^.*\///' | sed 's/\-.*$//')"
+        echo "Ubuntu distribution: ${distro}"
+        printf "distro=%s\n" "${distro}" >> "$GITHUB_OUTPUT"
+
+    - name: Get New USNs
+      uses: paketo-buildpacks/github-config/actions/stack/get-usns@main
+      id: usns
+      with:
+        distribution: ${{ steps.distro.outputs.distro }}
+        packages: ${{ steps.packages.outputs.packages }}
+        last_usns: ${{ steps.patched.outputs.patched }}
+
+    - name: Write USNs File
+      id: write_usns
+      run: |
+        jq . <<< "${USNS}" > "${USNS_PATH}"
+        echo "usns=${USNS_PATH}" >> "$GITHUB_OUTPUT"
+      env:
+        USNS_PATH: "${{ matrix.arch }}-${{ matrix.stacks.name }}-${{ env.PATCHED_USNS_FILENAME }}"
+        USNS: ${{ steps.usns.outputs.usns }}
+
+    - name: Upload USNs file
+      uses: actions/upload-artifact@v4
+      with:
+        name: "${{ matrix.arch }}-${{ matrix.stacks.name }}-${{ env.PATCHED_USNS_FILENAME }}"
+        path: "${{ matrix.arch }}-${{ matrix.stacks.name }}-${{ env.PATCHED_USNS_FILENAME }}"
+
+    - name: Are any new USNs
+      id: new_usns
+      run: |
+        if [ "${{ steps.usns.outputs.usns }}" != "[]"  ]; then
+          echo "usns=true" >> "$GITHUB_OUTPUT"
+        fi
 
   # The job below checks if new images are available on the registry
   # based on the sha256 checksum. If yes, it triggers the flow
@@ -330,7 +373,7 @@ jobs:
       !failure() && !cancelled() &&
       !(
         (needs.poll_images.outputs.images_need_update == null && 
-        needs.poll_usns.outputs.usns == '[]') && 
+        needs.poll_usns.outputs.usns == null ) && 
         github.event_name == 'schedule'
       ) }}
     outputs:
@@ -373,7 +416,7 @@ jobs:
       !failure() && !cancelled() &&
       !(
         (needs.poll_images.outputs.images_need_update == null && 
-        needs.poll_usns.outputs.usns == '[]') && 
+        needs.poll_usns.outputs.usns == null ) && 
         github.event_name == 'schedule'
       ) }}
     runs-on: ubuntu-22.04
@@ -509,7 +552,7 @@ jobs:
       if: ${{ matrix.stacks.create_build_image == true && steps.check_previous.outputs.exists == 'true' }}
       uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
       with:
-        asset_pattern: "${{ steps.previous_receipt_download_pattern.outputs.build_filename }}"
+        asset_pattern: "${{ steps.previous_receipt_download_pattern.outputs.build }}"
         search_depth: 1
         repo: ${{ github.repository }}
         output_path: "/github/workspace/${{ matrix.arch }}-previous-build-receipt-${{ matrix.stacks.name }}"
@@ -590,6 +633,23 @@ jobs:
         path: diff-${{ matrix.arch }}-${{ matrix.stacks.name }}
         if-no-files-found: error 
 
+    - name: Download USN File(s)
+      if: ${{ needs.preparation.outputs.polling_type == 'usn' }}
+      uses: actions/download-artifact@v4
+      with:
+        pattern: "${{ matrix.arch }}-${{ matrix.stacks.name }}-${{ env.PATCHED_USNS_FILENAME }}"
+        path: "${{ matrix.arch }}-${{ matrix.stacks.name }}-${{ env.PATCHED_USNS_FILENAME }}"
+
+    # TODO debug code Remove
+    - name: Tree
+      run: tree .
+    
+    - name: Get USNs
+      id: get-usns
+      run: |
+        usns=$(cat "${{ matrix.arch }}-${{ matrix.stacks.name }}-${{ env.PATCHED_USNS_FILENAME }}" )
+        echo "usns=$usns" >> "$GITHUB_OUTPUT"
+
     - name: Get Repository Name
       id: repo_name
       run: |
@@ -637,6 +697,7 @@ jobs:
         run_packages_modified: ${{ steps.run_diff.outputs.modified }}
         run_packages_removed_with_force: ${{ steps.run_diff.outputs.removed }}
         supports_usns: ${{ needs.preparation.outputs.support_usns }}
+        patched_usns: ${{ needs.get-usns.outputs.usns }}
 
     - name: Release Notes File
       id: release-notes-file
@@ -744,10 +805,6 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         pattern: current-build-image-*
-
-    ## TODO remove below debug step
-    - name: treeeee
-      run: tree .
 
     - name: Download Run image(s)
       uses: actions/download-artifact@v4
@@ -1031,6 +1088,44 @@ jobs:
                   }
                 ]' <<<"${assets}")"
             fi
+          done
+        done
+
+
+        for stack in $stacks; do
+          stack_name_prefix="${stack}"
+          if [[ $stack_name == "default" ]]; then
+            stack_name_prefix=""
+          fi
+
+          for arch in $archs; do
+            arch_prefix="${arch}"
+            if [[ $arch == "amd64" ]]; then
+              arch_prefix=""
+            fi
+
+            usn_asset_name=$(
+              echo '[
+                "${{ needs.preparation.outputs.github_repo_name }}",
+                "${{ steps.tag.outputs.tag }}",
+                "'"$stack_name_prefix"'",
+                "'"$arch_prefix"'",
+                "${{ env.PATCHED_USNS_FILENAME }}"
+              ]' | jq -r 'map(select(length > 0)) | join("-")'
+            )
+            
+            assets="$(jq --compact-output \
+              --arg usns_filepath "usn-files" \
+              --arg stack_name "${stack_name}" \
+              --arg arch "${arch}" \
+              --arg usn_asset_name "${usn_asset_name}"
+              '. += [
+              {
+                "path": ($usns_filepath + "/" + $arch + "-" + $stack_name + "-" + $patched_usns_suffix),
+                "name": $usn_asset_name,
+                "content_type": "text/plain"
+              }
+            ]' <<< "${assets}")"
           done
         done
 
