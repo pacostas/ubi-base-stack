@@ -455,13 +455,13 @@ jobs:
           echo "run_filename=${{ matrix.arch }}-current-run-receipt-${{ matrix.stacks.name }}" >>  "$GITHUB_OUTPUT"
         fi
 
-    - name: Download Build Receipt(s)
+    - name: Download Current Build Receipt(s)
       if: ${{ matrix.stacks.create_build_image == true }}
       uses: actions/download-artifact@v4
       with:
         name: ${{ steps.current_receipt.outputs.build_filename }}
 
-    - name: Download Run Receipt(s)
+    - name: Download Current Run Receipt(s)
       uses: actions/download-artifact@v4
       with:
         name: ${{ steps.current_receipt.outputs.run_filename }}
@@ -482,19 +482,13 @@ jobs:
         fi
         echo "exists=true" >> "$GITHUB_OUTPUT"
 
-    - name: Previous receipt filenames
-      id: previous_receipt
-      run: |
-        echo "build_filename=${{ matrix.arch }}-previous-build-receipt-${{ matrix.stacks.name }}" >>  "$GITHUB_OUTPUT"
-        echo "run_filename=${{ matrix.arch }}-previous-run-receipt-${{ matrix.stacks.name }}" >>  "$GITHUB_OUTPUT"
-
     - name: Write Empty Previous Receipts
       if: ${{ steps.check_previous.outputs.exists == 'false' }}
       run: |
         if [ ${{ matrix.stacks.create_build_image }} == true ]; then
-          echo '{"components":[]}' > "/github/workspace/${{ steps.previous_receipt.outputs.build_filename}}"
+          echo '{"components":[]}' > "/github/workspace/${{ matrix.arch }}-previous-build-receipt-${{ matrix.stacks.name }}"
         fi
-        echo '{"components":[]}' > "/github/workspace/${{ steps.previous_receipt.outputs.run_filename}}"
+        echo '{"components":[]}' > "/github/workspace/${{ matrix.arch }}-previous-run-receipt-${{ matrix.stacks.name }}"
 
     - name: Previous receipt download filename pattern
       id: previous_receipt_download_pattern
@@ -518,7 +512,7 @@ jobs:
         asset_pattern: "${{ steps.previous_receipt_download_pattern.outputs.build_filename }}"
         search_depth: 1
         repo: ${{ github.repository }}
-        output_path: "/github/workspace/previous-${{ steps.previous_receipt_download_pattern.outputs.build_filename }}"
+        output_path: "/github/workspace/${{ matrix.arch }}-previous-build-receipt-${{ matrix.stacks.name }}"
         token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
 
     - name: Find and Download Previous Run Receipt
@@ -528,7 +522,7 @@ jobs:
         asset_pattern: "${{ steps.previous_receipt_download_pattern.outputs.run_filename }}"
         search_depth: 1
         repo: ${{ github.repository }}
-        output_path: "/github/workspace/previous-${{ steps.previous_receipt_download_pattern.outputs.run_filename }}"
+        output_path: "/github/workspace/${{ matrix.arch }}-previous-run-receipt-${{ matrix.stacks.name }}"
         token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
 
     - name: Compare Build Packages
@@ -536,14 +530,14 @@ jobs:
       if: ${{ matrix.stacks.create_build_image == true }}
       uses: paketo-buildpacks/github-config/actions/stack/diff-package-receipts@main
       with:
-        previous: "/github/workspace/previous-${{ steps.previous_receipt_download_pattern.outputs.build_filename}}"
+        previous: "/github/workspace/${{ matrix.arch }}-previous-build-receipt-${{ matrix.stacks.name }}"
         current: "/github/workspace/${{ steps.current_receipt.outputs.build_filename}}"
 
     - name: Compare Run Packages
       id: run_diff
       uses: paketo-buildpacks/github-config/actions/stack/diff-package-receipts@main
       with:
-        previous: "/github/workspace/previous-${{ steps.previous_receipt_download_pattern.outputs.run_filename }}"
+        previous: "/github/workspace/${{ matrix.arch }}-previous-run-receipt-${{ matrix.stacks.name }}"
         current: "/github/workspace/${{ steps.current_receipt.outputs.run_filename}}"
 
     - name: Fail If Packages Removed
@@ -1019,7 +1013,7 @@ jobs:
                 }
               ]' <<<"${assets}")"
 
-            ## Add the SBOM files of the build images to the assets
+            ## Adding the SBOM files of the build images to the assets
             if [[ $create_build_image == true ]]; then
               build_receipt_filename=$(echo "$stack" | jq -r '.build_receipt_filename')
               assets="$(jq --compact-output \
