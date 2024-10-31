@@ -477,8 +477,8 @@ jobs:
 
   diff:
     name: Diff Packages
-    needs: [ preparation, create_stack , poll_images]
-    if: ${{ !cancelled() && !failure() }}
+    needs: [ preparation, create_stack ]
+    if: ${{ !cancelled() && !failure() && !contains(needs.*.result, 'skipped') }}
     runs-on: ubuntu-22.04
     outputs:
       removed_with_force: ${{ steps.removed_with_force.outputs.packages_removed }}
@@ -724,7 +724,7 @@ jobs:
     name: Determine If Packages Changed
     needs: [ diff, preparation ]
     runs-on: ubuntu-22.04
-    if: ${{ !cancelled() && !failure() }}
+    if: ${{ !cancelled() && !failure() && !contains(needs.*.result, 'skipped') }}
     strategy:
       matrix:
         stacks: ${{ fromJSON(needs.preparation.outputs.stacks) }}
@@ -789,9 +789,9 @@ jobs:
 
   test:
     name: Acceptance Test
-    needs: [ create_stack, preparation ]
+    needs: [ preparation, create_stack ]
+    if: ${{ !cancelled() && !failure() && !contains(needs.*.result, 'skipped') }}
     runs-on: ubuntu-22.04
-    if: ${{ !failure() && !cancelled() }}
     steps:
     - name: Setup Go
       uses: actions/setup-go@v5
