@@ -507,7 +507,7 @@ jobs:
   diff:
     name: Diff Packages
     needs: [ preparation, create_stack ]
-    if: ${{ !cancelled() && !failure() && !contains(needs.*.result, 'skipped') }}
+    if: ${{ !cancelled() && !failure() && needs.create_stack != 'skipped' }}
     runs-on: ubuntu-22.04
     outputs:
       removed_with_force: ${{ steps.removed_with_force.outputs.packages_removed }}
@@ -675,6 +675,7 @@ jobs:
     
     - name: Get USNs
       id: get-usns
+      if: ${{ needs.preparation.outputs.polling_type == 'usn' }}
       run: |
         usns=$(cat "${{ matrix.arch }}-${{ matrix.stacks.name }}-${{ env.PATCHED_USNS_FILENAME }}" )
         echo "usns=$usns" >> "$GITHUB_OUTPUT"
@@ -753,7 +754,7 @@ jobs:
     name: Determine If Packages Changed
     needs: [ diff, preparation ]
     runs-on: ubuntu-22.04
-    if: ${{ !cancelled() && !failure() && !contains(needs.*.result, 'skipped') }}
+    if: ${{ !cancelled() && !failure() && needs.diff != 'skipped' }}
     strategy:
       matrix:
         stacks: ${{ fromJSON(needs.preparation.outputs.stacks) }}
@@ -819,7 +820,7 @@ jobs:
   test:
     name: Acceptance Test
     needs: [ preparation, create_stack ]
-    if: ${{ !cancelled() && !failure() && !contains(needs.*.result, 'skipped') }}
+    if: ${{ !cancelled() && !failure() && needs.create_stack != 'skipped' }}
     runs-on: ubuntu-22.04
     steps:
     - name: Setup Go
