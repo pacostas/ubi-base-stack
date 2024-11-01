@@ -523,55 +523,62 @@ jobs:
         stacks: ${{ fromJSON(needs.preparation.outputs.stacks) }}
         arch: ${{ fromJSON(needs.preparation.outputs.architectures) }}
     steps:
-    - name: Current receipt filenames
-      id: current_receipt
-      run: |
-        if [ "${{ matrix.arch }}" = "amd64" ]; then
-          echo "build_filename=current-build-receipt-${{ matrix.stacks.name }}" >>  "$GITHUB_OUTPUT"
-          echo "run_filename=current-run-receipt-${{ matrix.stacks.name }}" >>  "$GITHUB_OUTPUT"
-        else
-          echo "build_filename=${{ matrix.arch }}-current-build-receipt-${{ matrix.stacks.name }}" >>  "$GITHUB_OUTPUT"
-          echo "run_filename=${{ matrix.arch }}-current-run-receipt-${{ matrix.stacks.name }}" >>  "$GITHUB_OUTPUT"
-        fi
-
-    - name: Download Current Build Receipt(s)
-      if: ${{ matrix.stacks.create_build_image == true }}
+    - name: Download Current Receipt(s)
       uses: actions/download-artifact@v4
       with:
-        name: ${{ steps.current_receipt.outputs.build_filename }}
-
-    - name: Download Current Run Receipt(s)
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ steps.current_receipt.outputs.run_filename }}
-
-    - name: Display structure of downloaded files
-      run: ls -R
+        pattern: current-*-receipt-${{ matrix.stacks.name }}
+        path: receipt-files
 
     # TODO debug code
     - name: tree
       run: tree .
 
+    - name: Move/Rename Build receipt properly
+      if: ${{ matrix.stacks.create_build_image == true }}
+      run: |
+        arch_prefix="${{ matrix.arch }}-"
+        echo "This is the arch prefix ${arch_prefix}"
+        if [[ "${{ matrix.arch }}" == "amd64" ]]; then
+          arch_prefix=""
+        fi
+        mv receipt-files/current-build-receipt-${{ matrix.stacks.name }}/${arch_prefix}current-build-receipt-${{ matrix.stacks.name }} ./${{ matrix.arch }}-current-build-receipt-${{ matrix.stacks.name }}
+
+    - name: Move/Rename Run receipt properly
+      run: |
+        arch_prefix="${{ matrix.arch }}-"
+        echo "This is the arch prefix ${arch_prefix}"
+        if [[ "${{ matrix.arch }}" == "amd64" ]]; then
+          arch_prefix=""
+        fi
+        mv receipt-files/current-run-receipt-${{ matrix.stacks.name }}/${arch_prefix}current-run-receipt-${{ matrix.stacks.name }} ./${{ matrix.arch }}-current-run-receipt-${{ matrix.stacks.name }}
+
+    #TODO uncomment below code
+    # - name: Check for Previous Releases
+    #   id: check_previous
+    #   env:
+    #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   run: |
+    #     gh auth status
+    #     # shellcheck disable=SC2046
+    #     if [ $(gh api "/repos/${{ github.repository }}/releases" | jq -r 'length') -eq 0 ]; then
+    #       echo "exists=false" >> "$GITHUB_OUTPUT"
+    #       exit 0
+    #     fi
+    #     echo "exists=true" >> "$GITHUB_OUTPUT"
+
+    #TODO remove below code when a solution has been found
     - name: Check for Previous Releases
       id: check_previous
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh auth status
-        # shellcheck disable=SC2046
-        if [ $(gh api "/repos/${{ github.repository }}/releases" | jq -r 'length') -eq 0 ]; then
-          echo "exists=false" >> "$GITHUB_OUTPUT"
-          exit 0
-        fi
-        echo "exists=true" >> "$GITHUB_OUTPUT"
+        echo "exists=false" >> "$GITHUB_OUTPUT"
 
     - name: Write Empty Previous Receipts
       if: ${{ steps.check_previous.outputs.exists == 'false' }}
       run: |
         if [ ${{ matrix.stacks.create_build_image }} == true ]; then
-          echo '{"components":[]}' > "/github/workspace/${{ matrix.arch }}-previous-build-receipt-${{ matrix.stacks.name }}"
+          echo '{"components":[]}' > "./${{ matrix.arch }}-previous-build-receipt-${{ matrix.stacks.name }}"
         fi
-        echo '{"components":[]}' > "/github/workspace/${{ matrix.arch }}-previous-run-receipt-${{ matrix.stacks.name }}"
+        echo '{"components":[]}' > "./${{ matrix.arch }}-previous-run-receipt-${{ matrix.stacks.name }}"
 
     - name: Previous receipt download filename pattern
       id: previous_receipt_download_pattern
@@ -614,14 +621,14 @@ jobs:
       uses: paketo-buildpacks/github-config/actions/stack/diff-package-receipts@main
       with:
         previous: "/github/workspace/${{ matrix.arch }}-previous-build-receipt-${{ matrix.stacks.name }}"
-        current: "/github/workspace/${{ steps.current_receipt.outputs.build_filename}}"
+        current: "/github/workspace/${{ matrix.arch }}-current-build-receipt-${{ matrix.stacks.name }}"
 
     - name: Compare Run Packages
       id: run_diff
       uses: paketo-buildpacks/github-config/actions/stack/diff-package-receipts@main
       with:
         previous: "/github/workspace/${{ matrix.arch }}-previous-run-receipt-${{ matrix.stacks.name }}"
-        current: "/github/workspace/${{ steps.current_receipt.outputs.run_filename}}"
+        current: "/github/workspace/${{ matrix.arch }}-current-run-receipt-${{ matrix.stacks.name }}"
 
     - name: Fail If Packages Removed
       id: removed_with_force
