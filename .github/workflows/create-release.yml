@@ -950,9 +950,6 @@ jobs:
         pattern: current-build-receipt-*
         merge-multiple: true
 
-    - name: Display Build Receipts
-      run: ls receipt-files
-
     - name: Download Run Receipts
       uses: actions/download-artifact@v4
       with:
@@ -960,7 +957,7 @@ jobs:
         pattern: current-run-receipt-*
         merge-multiple: true
 
-    - name: Display Run Receipts
+    - name: Display Receipts
       run: ls receipt-files
 
     - name: Download hash code Files
