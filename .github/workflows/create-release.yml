@@ -1101,45 +1101,63 @@ jobs:
 
         for stack in $stacks; do
           for arch in $archs; do
-            arch_prefix="${arch}-"
-            if [[ $arch == "amd64" ]]; then
-              arch_prefix=""
-            fi
 
-          assets="$(jq --compact-output \
-            --arg receipts_filepath "receipt-files" \
-            --arg stack_name "${stack_name}" \
-            --arg run_receipt_filename "${run_receipt_filename}" \
-            --arg tag "${{ steps.tag.outputs.tag }}" \
-            --arg repo "${{ needs.preparation.outputs.github_repo_name }}" \
-            --arg arch_prefix "${arch_prefix}" \
-            '. += [
-              {
-                "path": ($receipts_filepath + "/" + $arch_prefix + "current-run-receipt" + "-" + $stack_name ),
-                "name": ($repo + "-" + $tag + $arch_prefix + $run_receipt_filename),
-                "content_type": "text/plain"
-              }
-            ]' <<<"${assets}")"
+            stack_name=$(echo "$stack" | jq -r '.name')
+            run_receipt_filename=$(echo "$stack" | jq -r '.run_receipt_filename')
+            create_build_image=$(echo "$stack" | jq -r '.create_build_image // false')
 
-          ## Adding the SBOM files of the build images to the assets
-          if [[ $create_build_image == true ]]; then
-            build_receipt_filename=$(echo "$stack" | jq -r '.build_receipt_filename')
+            receipt_file_name=$(
+              echo '[ "'"$arch"'" ,"current-run-receipt" , "'"$stack_name"'"  ]' |
+                jq -r 'map(select(. != "amd64")) | join("-")'
+            )
+
+            receipt_asset_name=$(
+              echo '[ "'"$repo"'", "'"$tag"'", "'"$arch"'", "'"$run_receipt_filename"'"  ]' |
+                jq -r 'map(select(. != "amd64")) | map(select(. != "default")) | join("-")'
+            )
+
             assets="$(jq --compact-output \
               --arg receipts_filepath "receipt-files" \
-              --arg stack_name "${stack_name}" \
-              --arg build_receipt_filename "${build_receipt_filename}" \
-              --arg tag "${{ steps.tag.outputs.tag }}" \
-              --arg repo "${{ needs.preparation.outputs.github_repo_name }}" \
-              --arg arch_prefix "${arch_prefix}" \
+              --arg receipt_file_name "${receipt_file_name}" \
+              --arg receipt_asset_name "${receipt_asset_name}" \
               '. += [
-                {
-                  "path": ($receipts_filepath + "/" + $arch_prefix + "current-build-receipt" + "-" + $stack_name ),
-                  "name": ($repo + "-" + $tag + $arch_prefix + $build_receipt_filename),
-                  "content_type": "text/plain"
-                }
-              ]' <<<"${assets}")"
-          fi
-         done
+                  {
+                    "path": ($receipts_filepath + "/" + $receipt_file_name),
+                    "name": $receipt_asset_name,
+                    "content_type": "text/plain"
+                  }
+                ]' <<<"${assets}")"
+
+            ## Adding the SBOM files of the build images to the assets
+            if [[ $create_build_image == true ]]; then
+              build_receipt_filename=$(echo "$stack" | jq -r '.build_receipt_filename')
+
+              receipt_file_name=$(
+                echo '[ "'"$arch"'" ,"current-build-receipt" , "'"$stack_name"'"  ]' |
+                  jq -r 'map(select(. != "amd64")) | join("-")'
+              )
+
+              receipt_asset_name=$(
+                echo '[ "'"$repo"'", "'"$tag"'", "'"$arch"'", "'"$build_receipt_filename"'"  ]' |
+                  jq -r 'map(select(. != "amd64")) | map(select(. != "default")) | join("-")'
+              )
+
+              assets="$(jq --compact-output \
+                --arg receipts_filepath "receipt-files" \
+                --arg receipt_file_name "${receipt_file_name}" \
+                --arg receipt_asset_name "${receipt_asset_name}" \
+                --arg tag "${{ steps.tag.outputs.tag }}" \
+                --arg repo "${{ needs.preparation.outputs.github_repo_name }}" \
+                --arg arch_prefix "${arch_prefix}" \
+                '. += [
+                  {
+                    "path": ($receipts_filepath + "/" + $receipt_file_name),
+                    "name": $receipt_asset_name,
+                    "content_type": "text/plain"
+                  }
+                ]' <<<"${assets}")"
+            fi
+          done
         done
 
         ## Add the usn files to the assets
