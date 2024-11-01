@@ -313,7 +313,6 @@ jobs:
         repo: ${{ github.repository }}
         output_path: "./previous_${{ matrix.arch }}-${{ matrix.stacks.build_image }}.oci.sha256"
         token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
-        strict: true
 
     - name: Find and Download Previous run image hash code of stack ${{ matrix.stacks.run_image }}
       uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
@@ -323,7 +322,6 @@ jobs:
         repo: ${{ github.repository }}
         output_path: "./previous_${{ matrix.arch }}-${{ matrix.stacks.run_image }}.oci.sha256"
         token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
-        strict: true
 
     - name: Get current build image hash code of ${{ matrix.stacks.name }} stack with arch ${{ matrix.arch }}
       if: ${{ matrix.stacks.create_build_image == true }}
