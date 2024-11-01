@@ -64,6 +64,8 @@ function main() {
 
   tools::install
 
+  # If the build image is specified, then the build directory
+  # is differenet from the default
   if [ $build_image_specified = true ]; then
     build_dir=$(dirname "${build}")
   else
@@ -117,7 +119,7 @@ function receipts::generate::multi::arch() {
   buildOutput="${3}"
   runOutput="${4}"
   build_dir="${5}"
-  
+
   registryPort=$(get::random::port)
   registryPid=$(local::registry::start $registryPort)
   localRegistry="127.0.0.1:$registryPort"
