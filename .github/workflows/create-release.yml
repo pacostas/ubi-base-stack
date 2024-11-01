@@ -1051,7 +1051,6 @@ jobs:
                 ]' <<<"${assets}")"
           fi
 
-          release_notes_content_per_arch=""
           for arch in $archs; do
             arch_prefix="-${arch}-"
             if [[ $arch == "amd64" ]]; then
@@ -1097,43 +1096,50 @@ jobs:
                   ]' <<<"${assets}")"
               fi
             fi
-            ## TODO add the usns
+          done
+        done
 
-            ## Add the SBOM files of the run images to the assets
+        for stack in $stacks; do
+          for arch in $archs; do
+            arch_prefix="${arch}-"
+            if [[ $arch == "amd64" ]]; then
+              arch_prefix=""
+            fi
+
+          assets="$(jq --compact-output \
+            --arg receipts_filepath "receipt-files" \
+            --arg stack_name "${stack_name}" \
+            --arg run_receipt_filename "${run_receipt_filename}" \
+            --arg tag "${{ steps.tag.outputs.tag }}" \
+            --arg repo "${{ needs.preparation.outputs.github_repo_name }}" \
+            --arg arch_prefix "${arch_prefix}" \
+            '. += [
+              {
+                "path": ($receipts_filepath + "/" + $arch_prefix + "current-run-receipt" + "-" + $stack_name ),
+                "name": ($repo + "-" + $tag + $arch_prefix + $run_receipt_filename),
+                "content_type": "text/plain"
+              }
+            ]' <<<"${assets}")"
+
+          ## Adding the SBOM files of the build images to the assets
+          if [[ $create_build_image == true ]]; then
+            build_receipt_filename=$(echo "$stack" | jq -r '.build_receipt_filename')
             assets="$(jq --compact-output \
               --arg receipts_filepath "receipt-files" \
               --arg stack_name "${stack_name}" \
-              --arg run_receipt_filename "${run_receipt_filename}" \
+              --arg build_receipt_filename "${build_receipt_filename}" \
               --arg tag "${{ steps.tag.outputs.tag }}" \
               --arg repo "${{ needs.preparation.outputs.github_repo_name }}" \
               --arg arch_prefix "${arch_prefix}" \
               '. += [
                 {
-                  "path": ($receipts_filepath + "/" + "current-run-receipt"+ $arch_prefix + $stack_name ),
-                  "name": ($repo + "-" + $tag + $arch_prefix + $run_receipt_filename),
+                  "path": ($receipts_filepath + "/" + $arch_prefix + "current-build-receipt" + "-" + $stack_name ),
+                  "name": ($repo + "-" + $tag + $arch_prefix + $build_receipt_filename),
                   "content_type": "text/plain"
                 }
               ]' <<<"${assets}")"
-
-            ## Adding the SBOM files of the build images to the assets
-            if [[ $create_build_image == true ]]; then
-              build_receipt_filename=$(echo "$stack" | jq -r '.build_receipt_filename')
-              assets="$(jq --compact-output \
-                --arg receipts_filepath "receipt-files" \
-                --arg stack_name "${stack_name}" \
-                --arg build_receipt_filename "${build_receipt_filename}" \
-                --arg tag "${{ steps.tag.outputs.tag }}" \
-                --arg repo "${{ needs.preparation.outputs.github_repo_name }}" \
-                --arg arch_prefix "${arch_prefix}" \
-                '. += [
-                  {
-                    "path": ($receipts_filepath + "/" + "current-build-receipt"+ $arch_prefix + $stack_name ),
-                    "name": ($repo + "-" + $tag + $arch_prefix + $build_receipt_filename),
-                    "content_type": "text/plain"
-                  }
-                ]' <<<"${assets}")"
-            fi
-          done
+          fi
+         done
         done
 
         ## Add the usn files to the assets
