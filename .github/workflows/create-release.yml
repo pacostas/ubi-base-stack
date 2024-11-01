@@ -302,7 +302,7 @@ jobs:
         else
           echo "build=-${{ matrix.arch }}-${{ matrix.stacks.build_image }}.oci.sha256" >> "$GITHUB_OUTPUT"
           echo "run=-${{ matrix.arch }}-${{ matrix.stacks.run_image }}.oci.sha256" >> "$GITHUB_OUTPUT"
-        fi        
+        fi
 
     - name: Find and Download Previous build image hash code of stack ${{ matrix.stacks.build_image }}
       if: ${{ matrix.stacks.create_build_image == true }}
@@ -331,6 +331,15 @@ jobs:
     - name: Get current run image hash code of ${{ matrix.stacks.name }} stack with arch ${{ matrix.arch }}
       run: |
         skopeo inspect --format "{{.Digest}}" ${{ matrix.stacks.base_run_container_image }} > ./hash-code-current-run-image-${{ matrix.arch }}-${{ matrix.stacks.name }}
+    
+    - name: Create empty image hash codes
+      run: |
+        if [ ! -f "./hash-code-current-build-image-${{ matrix.arch }}-${{ matrix.stacks.name }}" ]; then
+          touch "./hash-code-current-build-image-${{ matrix.arch }}-${{ matrix.stacks.name }}"
+        fi
+        if [ ! -f "./hash-code-current-run-image-${{ matrix.arch }}-${{ matrix.stacks.name }}" ]; then
+          touch "./hash-code-current-run-image-${{ matrix.arch }}-${{ matrix.stacks.name }}"
+        fi
 
     - name: Upload run image hash code
       uses: actions/upload-artifact@v4
@@ -538,6 +547,10 @@ jobs:
 
     - name: Display structure of downloaded files
       run: ls -R
+
+    # TODO debug code
+    - name: tree
+      run: tree .
 
     - name: Check for Previous Releases
       id: check_previous
