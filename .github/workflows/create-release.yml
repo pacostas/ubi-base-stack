@@ -566,19 +566,23 @@ jobs:
     #     fi
     #     echo "exists=true" >> "$GITHUB_OUTPUT"
 
-    #TODO remove below code when a solution has been found
-    - name: Check for Previous Releases
-      id: check_previous
-      run: |
-        echo "exists=false" >> "$GITHUB_OUTPUT"
+    # #TODO remove below code when a solution has been found
+    # - name: Check for Previous Releases
+    #   id: check_previous
+    #   run: |
+    #     echo "exists=false" >> "$GITHUB_OUTPUT"
 
     - name: Write Empty Previous Receipts
-      if: ${{ steps.check_previous.outputs.exists == 'false' }}
+      # if: ${{ steps.check_previous.outputs.exists == 'false' }}
       run: |
         if [ ${{ matrix.stacks.create_build_image }} == true ]; then
-          echo '{"components":[]}' > "./${{ matrix.arch }}-previous-build-receipt-${{ matrix.stacks.name }}"
+          if [ ! -f "./${{ matrix.arch }}-previous-build-receipt-${{ matrix.stacks.name }}" ]; then
+            echo '{"components":[]}' > "./${{ matrix.arch }}-previous-build-receipt-${{ matrix.stacks.name }}"
+          fi
         fi
-        echo '{"components":[]}' > "./${{ matrix.arch }}-previous-run-receipt-${{ matrix.stacks.name }}"
+        if [ ! -f "./${{ matrix.arch }}-previous-run-receipt-${{ matrix.stacks.name }}" ]; then
+          echo '{"components":[]}' > "./${{ matrix.arch }}-previous-run-receipt-${{ matrix.stacks.name }}"
+        fi
 
     - name: Previous receipt download filename pattern
       id: previous_receipt_download_pattern
@@ -1010,6 +1014,8 @@ jobs:
 
         stacks=$(echo '${{ needs.preparation.outputs.stacks }}' | jq -c '.[]')
         archs=$(echo '${{ needs.preparation.outputs.architectures }}' | jq -c -r '.[]')
+        repo="${{ needs.preparation.outputs.github_repo_name }}"
+        tag="${{ steps.tag.outputs.tag }}"
 
         # Start with an empty array
         assets=$(jq -n -c '[]')
@@ -1099,12 +1105,12 @@ jobs:
           done
         done
 
+        ## Adding the SBOM files to the assets
         for stack in $stacks; do
           for arch in $archs; do
 
             stack_name=$(echo "$stack" | jq -r '.name')
             run_receipt_filename=$(echo "$stack" | jq -r '.run_receipt_filename')
-            create_build_image=$(echo "$stack" | jq -r '.create_build_image // false')
 
             receipt_file_name=$(
               echo '[ "'"$arch"'" ,"current-run-receipt" , "'"$stack_name"'"  ]' |
@@ -1128,7 +1134,8 @@ jobs:
                   }
                 ]' <<<"${assets}")"
 
-            ## Adding the SBOM files of the build images to the assets
+            create_build_image=$(echo "$stack" | jq -r '.create_build_image // false')
+
             if [[ $create_build_image == true ]]; then
               build_receipt_filename=$(echo "$stack" | jq -r '.build_receipt_filename')
 
