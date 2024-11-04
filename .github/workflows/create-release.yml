@@ -514,7 +514,7 @@ jobs:
   diff:
     name: Diff Packages
     needs: [ preparation, create_stack ]
-    if: ${{ !cancelled() && !failure() && needs.create_stack != 'skipped' }}
+    if: ${{ !cancelled() && !failure() && needs.create_stack.result != 'skipped' }}
     runs-on: ubuntu-22.04
     outputs:
       removed_with_force: ${{ steps.removed_with_force.outputs.packages_removed }}
@@ -776,7 +776,7 @@ jobs:
     name: Determine If Packages Changed
     needs: [ diff, preparation ]
     runs-on: ubuntu-22.04
-    if: ${{ !cancelled() && !failure() && needs.diff != 'skipped' }}
+    if: ${{ !cancelled() && !failure() && needs.diff.result != 'skipped' }}
     strategy:
       matrix:
         stacks: ${{ fromJSON(needs.preparation.outputs.stacks) }}
@@ -842,7 +842,7 @@ jobs:
   test:
     name: Acceptance Test
     needs: [ preparation, create_stack ]
-    if: ${{ !cancelled() && !failure() && needs.create_stack != 'skipped' }}
+    if: ${{ !cancelled() && !failure() && needs.create_stack.result != 'skipped' }}
     runs-on: ubuntu-22.04
     steps:
     - name: Setup Go
