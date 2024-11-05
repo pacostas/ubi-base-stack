@@ -531,10 +531,6 @@ jobs:
         stacks: ${{ fromJSON(needs.preparation.outputs.stacks) }}
         arch: ${{ fromJSON(needs.preparation.outputs.architectures) }}
     steps:
-    # TODO debug code
-    - name: tree
-      run: tree .
-
     - name: Check for Previous Releases
       id: check_previous
       run: |
@@ -566,6 +562,10 @@ jobs:
       with:
         pattern: current-*-receipt-${{ matrix.stacks.name }}
         path: receipt-files
+
+    # TODO debug code
+    - name: tree
+      run: tree .
 
     - name: Write Empty Current Receipts
       if: ${{ steps.check_previous.outputs.exists == 'false' || steps.arch_is_new.outputs.added == 'true' }}
