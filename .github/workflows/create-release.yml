@@ -423,7 +423,7 @@ jobs:
     name: Run If Stack Files Changed
     runs-on: ubuntu-22.04
     needs: [stack_files_changed]
-    if: ${{ needs.stack_files_changed.outputs.stack_files_changed == 'true' }}
+    if: ${{ !failure() && !cancelled() && needs.stack_files_changed.outputs.stack_files_changed == 'true' }}
     steps:
     - name: Run if stack files changed
       run: |
