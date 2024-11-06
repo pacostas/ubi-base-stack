@@ -138,10 +138,9 @@ jobs:
           chmod +x yj
 
           default_stack_dir=$(echo '${{ steps.get-stacks.outputs.stacks }}' | jq -r '.[] | select(.name=="default") | .config_dir')
+          echo "default_stack_dir=${default_stack_dir}" >> "$GITHUB_OUTPUT"
 
           platforms="$(cat "$default_stack_dir/stack.toml" | ./yj -tj | jq -c '[.platforms[] | sub("linux/"; "")]')"
-
-          echo "default_stack_dir=${default_stack_dir}"
           echo "platforms=${platforms}" >> "$GITHUB_OUTPUT"
 
           # get previous platforms
@@ -544,7 +543,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Check if arch on stack has been added or removed
+    - name: Check if arch on stack has been added
       id: arch_is_new
       run: |
         arch="${{ matrix.arch }}"
