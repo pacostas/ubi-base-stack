@@ -565,7 +565,6 @@ jobs:
         fi
 
     - name: Download Current Receipt(s)
-      if: ${{ steps.check_previous.outputs.exists == 'true' && steps.arch_is_new.outputs.added == 'false' }}
       uses: actions/download-artifact@v4
       with:
         pattern: current-*-receipt-${{ matrix.stacks.name }}
@@ -574,21 +573,6 @@ jobs:
     # TODO debug code
     - name: tree
       run: tree .
-
-    - name: Write Empty Current Receipts
-      if: ${{ steps.check_previous.outputs.exists == 'false' || steps.arch_is_new.outputs.added == 'true' }}
-      run: |
-        arch_prefix="${{ matrix.arch }}-"
-        if [[ "${{ matrix.arch }}" == "amd64" ]]; then
-          arch_prefix=""
-        fi
-        
-        if [ ${{ matrix.stacks.create_build_image }} == true ]; then
-          mkdir -p receipt-files/current-build-receipt-${{ matrix.stacks.name }}
-          echo '{"components":[]}' > receipt-files/current-build-receipt-${{ matrix.stacks.name }}/${arch_prefix}current-build-receipt-${{ matrix.stacks.name }}
-        fi
-        mkdir -p receipt-files/current-run-receipt-${{ matrix.stacks.name }}
-        echo '{"components":[]}' > receipt-files/current-run-receipt-${{ matrix.stacks.name }}/${arch_prefix}current-run-receipt-${{ matrix.stacks.name }}
 
     - name: Move/Rename Build receipt properly
       if: ${{ matrix.stacks.create_build_image == true }}
