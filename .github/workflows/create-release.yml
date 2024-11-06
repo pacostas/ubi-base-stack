@@ -38,7 +38,7 @@ jobs:
       github_repo_name: ${{ steps.repo.outputs.github_repo_name }}
       registry_repo_name: ${{ steps.repo.outputs.registry_repo_name }}
       repo_owner: ${{ steps.repo.outputs.repo_owner }}
-      default_stack_dir: ${{ steps.lookup.default_stack_dir }}
+      default_stack_dir: ${{ steps.lookup.outputs.default_stack_dir }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -556,12 +556,12 @@ jobs:
       id: arch_is_new
       run: |
         arch="${{ matrix.arch }}"
-        added_found=$(echo "${{ needs.preparation.outputs.platforms_added}}" | jq --arg arch "$arch" 'index($arch)')
+        added_found=$(echo '${{ needs.preparation.outputs.archs_added }}' | jq --arg arch "$arch" 'index($arch)')
 
         if [ "$added_found" == "null" ]; then
-            echo "added=true" >> "$GITHUB_OUTPUT"
+          echo "added=false" >> "$GITHUB_OUTPUT"
         else
-            echo "added=false" >> "$GITHUB_OUTPUT"
+          echo "added=true" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Download Current Receipt(s)
@@ -582,9 +582,12 @@ jobs:
         if [[ "${{ matrix.arch }}" == "amd64" ]]; then
           arch_prefix=""
         fi
+        
         if [ ${{ matrix.stacks.create_build_image }} == true ]; then
+          mkdir -p receipt-files/current-build-receipt-${{ matrix.stacks.name }}
           echo '{"components":[]}' > receipt-files/current-build-receipt-${{ matrix.stacks.name }}/${arch_prefix}current-build-receipt-${{ matrix.stacks.name }}
         fi
+        mkdir -p receipt-files/current-run-receipt-${{ matrix.stacks.name }}
         echo '{"components":[]}' > receipt-files/current-run-receipt-${{ matrix.stacks.name }}/${arch_prefix}current-run-receipt-${{ matrix.stacks.name }}
 
     - name: Move/Rename Build receipt properly
