@@ -669,14 +669,14 @@ jobs:
       run: |
          if [ "${{ matrix.stacks.create_build_image }}" == "true" ]; then
           build=$(jq '. | length' <<< "${BUILD_REMOVED}")
-           echo "Build (${{ matrix.arch }}) packages removed: ${build}"
+          echo "Build (${{ matrix.arch }}) packages removed: ${build}"
          fi
 
          run=$(jq '. | length' <<< "${RUN_REMOVED}")
          echo "Run (${{ matrix.arch }}) packages removed: ${run}"
 
          # only fail if packages are removed AND the release has not been forced
-         if ([ "${build}" -gt 0 ] && [ "${{ matrix.stacks.create_build_image }}" == "true"  ]) || [ "${run}" -gt 0 ]; then
+         if ( [ "${{ matrix.stacks.create_build_image }}" == "true" ] && [ "${build}" -gt 0 ] ) || [ "${run}" -gt 0 ]; then
            if [ "${{ github.event.inputs.force }}" != 'true' ]; then
              echo "Packages removed without authorization. Stack cannot be released."
              exit 1
