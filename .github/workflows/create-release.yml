@@ -42,6 +42,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # gets full history
 
       - name: Get stacks images
         id: get-stacks
