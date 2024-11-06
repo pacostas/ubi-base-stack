@@ -150,6 +150,14 @@ jobs:
 
           platforms_added=$(echo -n "{\"current_platforms\":${platforms},\"previous_platforms\":${previous_platforms}}" | jq -c '.current_platforms - .previous_platforms')
           echo "platforms_added=${platforms_added}"  >> "$GITHUB_OUTPUT"
+
+          #TODO remove debugg
+          echo "----------"
+          echo $platforms_added
+          echo "----------"
+          echo $previous_platforms
+          echo "----------"
+
   # The following job is specific to Ubuntu images. It checks for new
   # USNs (Ubuntu Security Notices) and triggers the flow to create
   # a new release with the latest images that have the USNs patched.
