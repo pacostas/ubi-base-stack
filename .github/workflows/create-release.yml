@@ -38,7 +38,7 @@ jobs:
       github_repo_name: ${{ steps.repo.outputs.github_repo_name }}
       registry_repo_name: ${{ steps.repo.outputs.registry_repo_name }}
       repo_owner: ${{ steps.repo.outputs.repo_owner }}
-      default_stack_dir: ${{ steps.lookup.default_stack_dir }}
+      default_stack_dir: ${{ steps.lookup.outputs.default_stack_dir }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
