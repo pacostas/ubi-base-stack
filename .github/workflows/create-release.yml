@@ -409,9 +409,8 @@ jobs:
       id: compare
       run: |
         # shellcheck disable=SC2046
-        changed="$(git diff --name-only $(git describe --tags --abbrev=0) -- ${{ needs.preparation.outputs.default_stack_dir }})"
-        if [ -z "${changed}" ]
-        then
+        changed=$(git diff --name-only $(git describe --tags --abbrev=0) -- "${{ needs.preparation.outputs.default_stack_dir }}")
+        if [ -z "${changed}" ]; then
           echo "No relevant files changed since previous release."
           echo "stack_files_changed=false" >> "$GITHUB_OUTPUT"
         else
