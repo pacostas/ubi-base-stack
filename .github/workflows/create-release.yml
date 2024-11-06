@@ -141,18 +141,21 @@ jobs:
 
           default_stack_dir=$(echo '${{ steps.get-stacks.outputs.stacks }}' | jq -r '.[] | select(.name=="default") | .config_dir')
           echo "default_stack_dir=${default_stack_dir}" >> "$GITHUB_OUTPUT"
+          echo $default_stack_dir
 
           platforms="$(cat "$default_stack_dir/stack.toml" | ./yj -tj | jq -c '[.platforms[] | sub("linux/"; "")]')"
           echo "platforms=${platforms}" >> "$GITHUB_OUTPUT"
+          echo "platforms=${platforms}"
 
           # get previous platforms
           git show $(git describe --tags --abbrev=0):"$default_stack_dir/stack.toml" > ./previous_stack.toml
 
           previous_platforms="$(cat ./previous_stack.toml | ./yj -tj | jq -c '[.platforms[] | sub("linux/"; "")]')"
+          echo $previous_platforms
 
           platforms_added=$(echo -n "{\"current_platforms\":${platforms},\"previous_platforms\":${previous_platforms}}" | jq -c '.current_platforms - .previous_platforms')
           echo "platforms_added=${platforms_added}"  >> "$GITHUB_OUTPUT"
-
+          echo "platforms_added=${platforms_added}"
 
   # The following job is specific to Ubuntu images. It checks for new
   # USNs (Ubuntu Security Notices) and triggers the flow to create
