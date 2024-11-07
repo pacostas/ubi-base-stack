@@ -40,6 +40,7 @@ jobs:
       registry_repo_name: ${{ steps.repo.outputs.registry_repo_name }}
       repo_owner: ${{ steps.repo.outputs.repo_owner }}
       default_stack_dir: ${{ steps.lookup.outputs.default_stack_dir }}
+      stack_files_dir: ${{ steps.get-stacks.outputs.stack_files_dir }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -49,7 +50,17 @@ jobs:
       - name: Get stacks images
         id: get-stacks
         run: |
-          stacks=$(
+
+          if [[ -f ${{ env.STACKS_FILEPATH }} ]]; then
+            stacks=$(jq '[.images[] |
+            . +
+            {
+              "create_build_image": (.create_build_image // false)
+            }]' ${{ env.STACKS_FILEPATH }} )
+
+            stack_files_dir="$(dirname "${{ env.STACKS_FILEPATH }}")"
+          else
+            stacks=$(
             cat <<EOF
           [
             {
@@ -66,13 +77,14 @@ jobs:
           EOF
           )
 
-          if [[ -f ${{ env.STACKS_FILEPATH }} ]]; then
-            stacks=$(jq '[.images[] |
-            . +
-            {
-              "create_build_image": (.create_build_image // false)
-            }]' ${{ env.STACKS_FILEPATH }} )
+            stack_files_dir="stack"
           fi
+
+          echo "stack_files_dir=$stack_files_dir" >> "$GITHUB_OUTPUT"
+          echo "_------------------"
+          echo $stack_files_dir
+          echo "_------------------"
+
 
           ## Filtering stacks array to include the minimum number of attributes
           stacks=$(echo "$stacks" | jq 'map({ 
@@ -103,6 +115,9 @@ jobs:
 
           stacks_added=$(echo -n "{\"current_stacks\":${current_stack_names},\"previous_stacks\":${previous_stack_names}}" | jq -c '.current_stacks - .previous_stacks')
           echo "stacks_added=${stacks_added}"  >> "$GITHUB_OUTPUT"
+          echo "88888888"
+          echo $stacks_added
+          echo "88888888"
 
 
       ## TODO below code can be improved by searching the os type from the stack
@@ -424,7 +439,7 @@ jobs:
       id: compare
       run: |
         # shellcheck disable=SC2046
-        changed=$(git diff --name-only $(git describe --tags --abbrev=0) -- "${{ needs.preparation.outputs.default_stack_dir }}")
+        changed=$(git diff --name-only $(git describe --tags --abbrev=0) -- "${{ needs.preparation.outputs.stack_files_dir }}")
         if [ -z "${changed}" ]; then
           echo "No relevant files changed since previous release."
           echo "stack_files_changed=false" >> "$GITHUB_OUTPUT"
