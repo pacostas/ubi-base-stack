@@ -30,6 +30,7 @@ jobs:
     name: Preparation
     runs-on: ubuntu-22.04
     outputs:
+      stacks_added: ${{ steps.get-stacks.outputs.stacks_added }}
       stacks: ${{ steps.get-stacks.outputs.stacks }}
       support_usns: ${{ steps.polling-os-type.outputs.support_usns }}
       architectures: ${{ steps.lookup.outputs.platforms }}
@@ -89,6 +90,20 @@ jobs:
 
           stacks=$(jq -c <<< "$stacks" )
           printf "stacks=%s\n" "${stacks}" >> "$GITHUB_OUTPUT"
+
+          git show $(git describe --tags --abbrev=0):"${{ env.STACKS_FILEPATH }}" > ./previous_images.json
+
+          if [ -f ./previous_images.json ]; then
+            previous_stack_names=$(jq  '[.images[] | .name ]' ./previous_images.json )
+          else
+            previous_stack_names="[]"
+          fi
+
+          current_stack_names=$(jq '[.images[] | .name]' "${{ env.STACKS_FILEPATH }}")
+
+          stacks_added=$(echo -n "{\"current_stacks\":${current_stack_names},\"previous_stacks\":${previous_stack_names}}" | jq -c '.current_stacks - .previous_stacks')
+          echo "stacks_added=${stacks_added}"  >> "$GITHUB_OUTPUT"
+
 
       ## TODO below code can be improved by searching the os type from the stack
       ## description
@@ -563,6 +578,18 @@ jobs:
           echo "added=true" >> "$GITHUB_OUTPUT"
         fi
 
+    - name: Check if the stack is newly added
+      id: stack_is_new
+      run: |
+        stack="${{ matrix.stack.name }}"
+        added_found=$(echo '${{ needs.preparation.outputs.stack_added }}' | jq --arg stack "$stack" 'index($stack)')
+
+        if [ "$added_found" == "null" ]; then
+          echo "added=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "added=true" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Download Current Receipt(s)
       uses: actions/download-artifact@v4
       with:
@@ -591,7 +618,7 @@ jobs:
         mv receipt-files/current-run-receipt-${{ matrix.stacks.name }}/${arch_prefix}current-run-receipt-${{ matrix.stacks.name }} ./${{ matrix.arch }}-current-run-receipt-${{ matrix.stacks.name }}
 
     - name: Write Empty Previous Receipts
-      if: ${{ steps.check_previous.outputs.exists == 'false' || steps.arch_is_new.outputs.added == 'true' }}
+      if: ${{ steps.check_previous.outputs.exists == 'false' || steps.arch_is_new.outputs.added == 'true' || steps.stack_is_new.outputs.added == 'true' }}
       run: |
         if [ ${{ matrix.stacks.create_build_image }} == true ]; then
           if [ ! -f "./${{ matrix.arch }}-previous-build-receipt-${{ matrix.stacks.name }}" ]; then
@@ -603,7 +630,7 @@ jobs:
         fi
 
     - name: Previous receipt download filename pattern
-      if: ${{ steps.check_previous.outputs.exists == 'true' && steps.arch_is_new.outputs.added == 'false' }}
+      if: ${{ steps.check_previous.outputs.exists == 'true' && steps.arch_is_new.outputs.added == 'false' && steps.stack_is_new.outputs.added == 'false' }}
       id: previous_receipt_download_pattern
       run: |
         if [ "${{ matrix.arch }}" = "amd64" ]; then
@@ -619,7 +646,7 @@ jobs:
         fi
 
     - name: Find and Download Previous Build Receipt
-      if: ${{ matrix.stacks.create_build_image == true &&  steps.check_previous.outputs.exists == 'true' && steps.arch_is_new.outputs.added == 'false' }}
+      if: ${{ matrix.stacks.create_build_image == true &&  steps.check_previous.outputs.exists == 'true' && steps.arch_is_new.outputs.added == 'false' && steps.stack_is_new.outputs.added == 'false' }}
       uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
       with:
         asset_pattern: "${{ steps.previous_receipt_download_pattern.outputs.build_filename }}"
@@ -629,7 +656,7 @@ jobs:
         token: ${{ secrets.PAKETO_BOT_GITHUB_TOKEN }}
 
     - name: Find and Download Previous Run Receipt
-      if: ${{  steps.check_previous.outputs.exists == 'true' && steps.arch_is_new.outputs.added == 'false' }}
+      if: ${{  steps.check_previous.outputs.exists == 'true' && steps.arch_is_new.outputs.added == 'false' && steps.stack_is_new.outputs.added == 'false' }}
       uses: paketo-buildpacks/github-config/actions/release/find-and-download-asset@main
       with:
         asset_pattern: "${{ steps.previous_receipt_download_pattern.outputs.run_filename }}"
