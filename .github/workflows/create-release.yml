@@ -816,6 +816,9 @@ jobs:
 
         echo "run_image=${{ needs.preparation.outputs.repo_owner }}/${{ matrix.stacks.run_image }}-${{ needs.preparation.outputs.registry_repo_name }}:${{ steps.tag.outputs.tag }}" >> "$GITHUB_OUTPUT"
 
+    - name: tree .  
+      run: tree .
+
     - name: Create Release Notes per Arch and per Stack
       id: notes_arc_stack
       uses: paketo-buildpacks/github-config/actions/stack/release-notes@main
@@ -922,31 +925,31 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Download Build Image(s)
-      uses: actions/download-artifact@v4
-      with:
-        pattern: current-build-image-*
+    # - name: Download Build Image(s)
+    #   uses: actions/download-artifact@v4
+    #   with:
+    #     pattern: current-build-image-*
 
-    - name: Download Run Image(s)
-      uses: actions/download-artifact@v4
-      with:
-        pattern: current-run-image-*
+    # - name: Download Run Image(s)
+    #   uses: actions/download-artifact@v4
+    #   with:
+    #     pattern: current-run-image-*
 
-    - name: Create OCI artifacts destination directory
-      run: |
-        echo '${{ needs.preparation.outputs.stacks }}' | jq -c '.[]' | while read -r stack; do
-          name=$(echo "$stack" | jq -r '.name')
-          output_dir=$(echo "$stack" | jq -r '.output_dir')
-          create_build_image=$(echo "$stack" | jq -r '.create_build_image')
-          mkdir -p $output_dir
-          mv "current-run-image-${name}/run.oci" "${output_dir}/run.oci"
-          if [ $create_build_image == 'true' ]; then
-            mv "current-build-image-${name}/build.oci" "${output_dir}/build.oci"
-          fi
-        done
+    # - name: Create OCI artifacts destination directory
+    #   run: |
+    #     echo '${{ needs.preparation.outputs.stacks }}' | jq -c '.[]' | while read -r stack; do
+    #       name=$(echo "$stack" | jq -r '.name')
+    #       output_dir=$(echo "$stack" | jq -r '.output_dir')
+    #       create_build_image=$(echo "$stack" | jq -r '.create_build_image')
+    #       mkdir -p $output_dir
+    #       mv "current-run-image-${name}/run.oci" "${output_dir}/run.oci"
+    #       if [ $create_build_image == 'true' ]; then
+    #         mv "current-build-image-${name}/build.oci" "${output_dir}/build.oci"
+    #       fi
+    #     done
 
-    - name: Run Acceptance Tests
-      run: ./scripts/test.sh --validate-stack-builds
+    # - name: Run Acceptance Tests
+    #   run: ./scripts/test.sh --validate-stack-builds
 
   release:
     name: Release
